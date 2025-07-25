@@ -2,198 +2,121 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# Basisinstellingen en paginaconfiguratie
-st.set_page_config(page_title="Tenderanalyse Tool", layout="wide")
-st.title("🔍 Tenderanalyse Tool")
+# --- Page Config ---
+st.set_page_config(page_title="Tender Analyse Tool", layout="wide")
+st.title("🔍 Intuïtieve Tender Analyse Tool")
 
-st.markdown("""
-Deze tool berekent de winkans op basis van zowel **kwaliteit** als **prijs (in punten)**.
-- **Kwaliteit:** Stel het aantal kwaliteitscriteria in (2–5), geef per criterium een weging (in procenten) én het maximale te behalen puntenaantal in. Vervolgens kun je voor elke inschrijver (en voor jezelf) een score kiezen op basis van een beoordelingsschaal.
-- **Prijs:** Stel in de zijbalk het maximale te behalen puntenaantal op prijs in (bijv. 40). In de scenario’s voer je direct een prijsscore in.
-- **Eigen prijsscore:** Kies of je jouw eigen prijsscore automatisch wilt instellen:
-    - **+10% duurder:** resulteert in _36_ punten op prijs bij maximaal _40_ punten
-    - **+15% duurder:** resulteert in _34_ punten op prijs bij maximaal _40_ punten
-    - **+20% duurder:** resulteert in _32_ punten op prijs bij maximaal _40_ punten
-    - **+25% duurder:** resulteert in _30_ punten op prijs bij maximaal _40_ punten
-  Of kies "Handmatig invullen" om zelf een waarde in te voeren.
-  
-De output geeft je:
-- Een overzicht van je eigen scores.
-- Een tabel met per scenario de totaalpunten van de concurrenten.
-- Per scenario: of je zou winnen of verliezen, en hoeveel prijspunten je eventueel mist.
-- Een overzicht van de benodigde prijsscores per scenario (in absolute punten en als percentage van de max).
-""")
+# --- Stap 1: Prijs-Kwaliteit Verdeling ---
+st.sidebar.header("Stap 1: Prijs vs Kwaliteit")
+# Verdeling slider in procenten
+pk_ratio = st.sidebar.slider(
+    "Verhouding Kwaliteit vs Prijs (%)",
+    min_value=0,
+    max_value=100,
+    value=60,
+    help="Verdeel 100% tussen kwaliteit en prijs"
+)
+kwaliteit_weging_pct = pk_ratio
+prijs_weging_pct = 100 - pk_ratio
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_weging_pct}%\n- **Prijs:** {prijs_weging_pct}%")
 
-# --- Sidebar Instellingen ---
-st.sidebar.header("🔧 Instellingen")
-
-# Aantal kwaliteitscriteria (excl. prijs)
-num_criteria = st.sidebar.selectbox("Aantal kwaliteitscriteria (excl. prijs)", options=[2, 3, 4, 5], index=3)
-criteria_labels = [f"W{i+1}" for i in range(num_criteria)]
-
-# Wegingen voor kwaliteit
-st.sidebar.subheader("Wegingen kwaliteit")
-wegingen_kwaliteit = {}
-for label in criteria_labels:
-    w = st.sidebar.number_input(f"Weging {label} (%)", min_value=0, max_value=100, value=20, step=1, key=f"weg_{label}")
-    wegingen_kwaliteit[label] = w
-# Hier definiëren we de totale weging voor kwaliteit
-weging_kwaliteit = sum(wegingen_kwaliteit.values())
-
-# Weging voor prijs (automatisch zo dat totaal 100 is)
-weging_prijs = st.sidebar.number_input("Weging prijs (%)", min_value=0, max_value=100, 
-                                         value=100 - weging_kwaliteit, step=1)
-
-st.sidebar.markdown("-----")
-# Maximale punten per kwaliteitscriterium (éénmalig instellen)
-st.sidebar.subheader("Maximale punten per kwaliteitscriterium")
-max_punten_criteria = {}
-for label in criteria_labels:
-    mp = st.sidebar.number_input(f"Max punten {label}", min_value=10, max_value=300, value=100, step=10, key=f"mp_{label}")
-    max_punten_criteria[label] = mp
-
-# Maximum te behalen punten op prijs (bijv. 40 punten)
-max_punten_prijs = st.sidebar.number_input("Max punten op prijs", min_value=10, max_value=500, value=40, step=1)
-
-st.sidebar.markdown("-----")
-# Beoordelingsschaal voor kwaliteitscriteria (invoer als opties)
-st.sidebar.subheader("Beoordelingsschaal kwaliteit")
-schaal_input = st.sidebar.text_input("Voer scoreopties in, gescheiden door komma's", value="0,25,50,75,100")
-schaal_options = [float(x.strip()) for x in schaal_input.split(",") if x.strip().replace('.', '', 1).isdigit()]
-max_schaal = max(schaal_options) if schaal_options else 100
-st.sidebar.markdown("**Opmerking:** Als de maximale waarde > 10 is, gaan we ervan uit dat je met percentages werkt.")
-
-# --- Scenario invoer voor concurrenten ---
-st.markdown("---")
-st.subheader("📥 Scenario invoer: Concurrenten")
-
-num_scenario = st.number_input("Aantal scenario’s (concurrenten)", min_value=1, max_value=10, value=3)
-
-# Invoer van scenario's (voor elke concurrent)
-scenario_list = []
-for i in range(int(num_scenario)):
-    with st.expander(f"Scenario {chr(65 + i)}"):
-        naam = st.text_input(f"Naam van concurrent {chr(65 + i)}", value=f"Concurrent {chr(65 + i)}", key=f"naam_{i}")
-        # Voer direct een prijsscore in (in punten, maximaal max_punten_prijs)
-        prijs_score = st.number_input(f"Prijsscore (in punten) voor {naam} (max {int(max_punten_prijs)})", 
-                                      min_value=0, max_value=int(max_punten_prijs), value=int(max_punten_prijs), step=1, key=f"prijs_{i}")
-        # Invoer kwaliteitsscores per criterium
-        kwaliteit_scores = []
-        for j in range(num_criteria):
-            score_str = st.selectbox(f"Score {criteria_labels[j]} voor {naam}", options=[str(x) for x in schaal_options], key=f"score_{i}_{j}")
-            try:
-                score_val = float(score_str)
-            except:
-                score_val = 0.0
-            kwaliteit_scores.append(score_val)
-        scenario_list.append({"Naam": naam, "PrijsScore": prijs_score, "Kwaliteit": kwaliteit_scores})
-
-# --- Eigen inschatting ---
-st.markdown("---")
-st.subheader("🤔 Eigen inschatting")
-
-keuze_prijs = st.radio("Kies hoe je jouw eigen prijsscore wilt instellen:", 
-                        options=["+10%", "+15%", "+20%", "+25%", "Handmatig invullen"], index=0)
-if not keuze_prijs.startswith("+"):
-    eigen_prijsscore = st.number_input("Eigen prijsscore (in punten)", min_value=0, max_value=int(max_punten_prijs), 
-                                       value=int(max_punten_prijs), step=1, key="eigen_prijs")
+# --- Puntenschaal selectie ---
+st.sidebar.subheader("Puntenschaal voor beoordeling")
+scales = {
+    "0-2-4-6-8-10": [0,2,4,6,8,10],
+    "0-2,5-5-7,5-10": [0,2.5,5,7.5,10],
+    "% -20%-40%-60%-80%-100%": [0,20,40,60,80,100],
+    "0-25-50-75-100": [0,25,50,75,100],
+    "0-30-50-80-100": [0,30,50,80,100],
+    "0-30-50-70": [0,30,50,70],
+    "Custom...": None
+}
+scale_label = st.sidebar.selectbox("Kies een schaal", options=list(scales.keys()))
+if scale_label == "Custom...":
+    custom = st.sidebar.text_input("Voer eigen schaalwaarden in, gescheiden door komma's", "0,25,50,75,100")
+    scale_values = [float(x.strip()) for x in custom.split(',')]
 else:
-    # Gebruik vaste correcties: +10% = max - 4, +15% = max - 6, +20% = max - 8, +25% = max - 10
-    aftrek_dict = {"+10%": 4, "+15%": 6, "+20%": 8, "+25%": 10}
-    aftrek = aftrek_dict.get(keuze_prijs, 0)
-    eigen_prijsscore = int(max_punten_prijs) - aftrek
-st.write(f"**Jouw eigen prijsscore:** {eigen_prijsscore} punten (max = {int(max_punten_prijs)})")
+    scale_values = scales[scale_label]
+max_scale = max(scale_values)
 
-# Invoer eigen kwaliteitsscores
-st.markdown("**Vul je eigen kwaliteitsscores in:**")
-eigen_scores = []
-for j in range(num_criteria):
-    s = st.selectbox(f"Score {criteria_labels[j]} (eigen inschatting)", options=[str(x) for x in schaal_options], key=f"eigen_{j}")
+# --- Maximale punten op prijs ---
+st.sidebar.subheader("Maximale Punten Prijs")
+max_price_points = st.sidebar.number_input(
+    "Max punten voor prijs", min_value=1, max_value=500, value=40, step=1
+)
+
+# --- Stap 2: Gunningscriteria ---
+st.sidebar.header("Stap 2: Gunningscriteria")
+num_criteria = st.sidebar.selectbox(
+    "Aantal criteria (1-10)", list(range(1,11)), index=3
+)
+# Dynamisch de criteria labels
+criteria = [f"C{i+1}" for i in range(num_criteria)]
+st.sidebar.subheader("Gewichten en verwachte scores")
+weging = {}
+verwachte = {}
+for c in criteria:
+    cols = st.sidebar.columns(2)
+    w = cols[0].number_input(f"Weging {c} (%)", min_value=0, max_value=100, value=round(100/num_criteria), key=f"w_{c}")
+    s = cols[1].selectbox(f"Score {c}", options=[str(x) for x in scale_values], key=f"s_{c}")
+    weging[c] = w
     try:
-        eigen_score_val = float(s)
+        verwachte[c] = float(s)
     except:
-        eigen_score_val = 0.0
-    eigen_scores.append(eigen_score_val)
+        verwachte[c] = 0.0
 
-# --- Berekeningen ---
-st.markdown("---")
-st.subheader("📈 Resultaten")
+# Controle totaal weging kwaliteit
+total_w = sum(weging.values())
+st.sidebar.markdown(f"**Totaal weging kwaliteit:** {total_w}% (moet 100%)")
 
-if st.button("Analyseer"):
-    # Functie: converteer een kwalitatieve score naar punten op basis van max per criterium.
-    def calc_kwaliteitscore(score, max_punten):
-        # Indien score in percentages (max_schaal > 10): (score/100)*max_punten, anders: (score/max_schaal)*max_punten.
-        if max_schaal > 10:
-            return (score / 100) * max_punten
-        else:
-            return (score / max_schaal) * max_punten
+# --- Stap 3: Eigen prijspositie ---
+st.sidebar.header("Stap 3: Eigen prijspozitie")
+margin_pct = st.sidebar.slider(
+    "Hoeveel procent duurder dan goedkoopste? (0-100%)", 0, 100, 10, help="We gaan uit van duurder dan goedkoopste"
+)
+eigen_prijs_score = max_price_points * max(0, 1 - margin_pct/100)
+st.sidebar.markdown(f"**Eigen prijsscore:** {eigen_prijs_score:.1f} punten")
 
-    # Bereken scores voor de concurrenten
-    concurrenten_result = []
-    for s in scenario_list:
-        naam = s["Naam"]
-        kwaliteit_total = 0
-        for j, score in enumerate(s["Kwaliteit"]):
-            mp = max_punten_criteria[criteria_labels[j]]
-            kwaliteit_total += calc_kwaliteitscore(score, mp)
-        prijsscore = s["PrijsScore"]
-        totaal_score = (kwaliteit_total * (weging_kwaliteit / 100)) + (prijsscore * (weging_prijs / 100))
-        concurrenten_result.append({"Naam": naam, "Prijsscore": prijsscore, "Kwaliteit": round(kwaliteit_total, 2), 
-                                     "Totaal": round(totaal_score, 2)})
-    
-    # Bereken eigen kwaliteitsscore
-    eigen_kwaliteit = 0
-    for j, score in enumerate(eigen_scores):
-        mp = max_punten_criteria[criteria_labels[j]]
-        eigen_kwaliteit += calc_kwaliteitscore(score, mp)
-    eigen_totaal = (eigen_kwaliteit * (weging_kwaliteit / 100)) + (eigen_prijsscore * (weging_prijs / 100))
-    
-    # Maak overzichtstabel van scenario's
-    df_results = pd.DataFrame(concurrenten_result)
-    df_results.sort_values(by="Totaal", ascending=False, inplace=True)
-    df_results.reset_index(drop=True, inplace=True)
-    df_results.index += 1
-    
-    st.markdown("### Overzicht scenario’s en winkansen")
-    st.write("Hieronder zie je de totale scores van de concurrenten. Vergelijk jouw totaal met die van de concurrenten:")
-    st.dataframe(df_results[["Naam", "Prijsscore", "Kwaliteit", "Totaal"]], use_container_width=True)
-    
-    # Winkansen per scenario: bepalen of jouw totaal hoger is, zo niet, hoeveel extra prijspunten je nodig hebt.
-    st.markdown("#### Winkansen per scenario")
-    winkans_lijst = []
-    for r in concurrenten_result:
-        if eigen_totaal > r["Totaal"]:
-            winkans_lijst.append(f"{r['Naam']}: WINNEN (jouw totaal {eigen_totaal:.2f} > {r['Totaal']:.2f})")
-        else:
-            extra_prijs = r["Totaal"] - (eigen_kwaliteit * (weging_kwaliteit / 100))
-            if extra_prijs < 0:
-                extra_prijs = 0
-            perc_extra = (extra_prijs / max_punten_prijs) * 100
-            winkans_lijst.append(f"{r['Naam']}: VERLIEZEN; je mist {extra_prijs:.2f} prijspunten (±{perc_extra:.1f}% van max).")
-    for w in winkans_lijst:
-        st.write("- " + w)
-    
-    # Overzicht benodigde prijsscores per scenario
-    st.markdown("### Overzicht benodigde prijsscores per scenario")
-    prijsscore_overzicht = []
-    for r in concurrenten_result:
-        benodigd = r["Totaal"] - (eigen_kwaliteit * (weging_kwaliteit / 100))
-        if benodigd < 0:
-            benodigd = 0
-        perc_verschil = (benodigd / max_punten_prijs) * 100
-        prijsscore_overzicht.append(f"{r['Naam']}: Minimaal {benodigd:.2f} punten op prijs (±{perc_verschil:.1f}% van max).")
-    for p in prijsscore_overzicht:
-        st.write("- " + p)
-    
-    # Overzicht eigen scores
-    st.markdown("### Jouw eigen ingevulde scores")
-    st.write(f"**Eigen prijsscore:** {eigen_prijsscore} punten")
-    st.write(f"**Eigen kwaliteitsscore:** {eigen_kwaliteit:.2f} punten")
-    st.write(f"**Totaal:** {eigen_totaal:.2f} punten")
-    
-    st.markdown("---")
-    st.caption("Tip: Maak een screenshot of exporteer de pagina als PDF voor archivering.")
-    
+# --- Concurrentsituaties ---
+st.header("📥 Voer concurrentsituaties in (max 15)")
+num_scen = st.number_input("Aantal situaties", min_value=1, max_value=15, value=3)
+scenarios = []
+for i in range(int(num_scen)):
+    with st.expander(f"Situatie {i+1}"):
+        naam = st.text_input("Naam concurrent", value=f"Concurrent {i+1}", key=f"naam{i}")
+        is_cheapest = st.checkbox("Is goedkoopste?", key=f"cheap{i}")
+        pct = 0.0
+        if not is_cheapest:
+            pct = st.number_input("% duurder dan goedkoopste", min_value=0.0, max_value=100.0, value=margin_pct, key=f"pct{i}")
+        price_score = max_price_points * (1 if is_cheapest else max(0, 1 - pct/100))
+        # kwaliteit per criterium
+        kval = {}
+        for c in criteria:
+            sc = st.selectbox(f"Score {c}", options=[str(x) for x in scale_values], key=f"k_{i}_{c}")
+            kval[c] = float(sc)
+        scenarios.append({"naam": naam, "prijs_score": price_score, "kwaliteit_scores": kval})
+
+# --- Analyse knoppen ---
+if st.button("Bereken winkansen"):
+    # Functie om score naar punten om te zetten
+    def score_to_points(score, max_pts):
+        if max_scale > 10:
+            return (score/100) * max_pts
+        return (score/max_scale) * max_pts
+
+    # Eigen kwaliteit totaal
+    eigen_kwal_pnt = sum(score_to_points(verwachte[c], max_price_points if False else st.sidebar.number_input) for c in criteria)  # placeholder
+    # TODO: implement eigen_kwal berekening
+    # Concurrent berekeningen
+    results = []
+    for s in scenarios:
+        kval_p = sum(score_to_points(s['kwaliteit_scores'][c], max_price_points if False else st.sidebar.number_input) for c in criteria)  # placeholder
+        totaal = (kval_p * (kwaliteit_weging_pct/100)) + (s['prijs_score'] * (prijs_weging_pct/100))
+        results.append({'Naam': s['naam'], 'Totaal': round(totaal,2)})
+
+    df = pd.DataFrame(results).sort_values('Totaal', ascending=False)
+    st.write(df)
 else:
-    st.info("Klik op 'Analyseer' om de resultaten te berekenen.")
+    st.info("Klik op 'Bereken winkansen' om te starten.")
+
 
