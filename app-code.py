@@ -115,8 +115,7 @@ if total_sub != kwaliteit_pct:
 
 # Prijs onder criteria
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  
-**Max punten Prijs:** {int(prijs_pct*10)}")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  **Max punten Prijs:** {int(prijs_pct*10)}")
 max_price_points = st.sidebar.number_input(
     "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
 )
