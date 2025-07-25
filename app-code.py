@@ -30,17 +30,17 @@ with col2:
         on_change=set_last, args=('price',)
     )
 # Compute paired values
+auto_quality = st.session_state.quality_input
 if st.session_state.last_changed == 'quality':
-    kwaliteit_pct = st.session_state.quality_input
-    prijs_pct = 100 - kwaliteit_pct
+    kwaliteit_pct = auto_quality
+    prijs_pct = 100 - auto_quality
     st.session_state.price_input = prijs_pct
 else:
     prijs_pct = st.session_state.price_input
     kwaliteit_pct = 100 - prijs_pct
     st.session_state.quality_input = kwaliteit_pct
 # Display
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
-- **Prijs:** {prijs_pct}%")
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
 st.sidebar.subheader("Puntenschaal voor beoordeling")
@@ -62,7 +62,7 @@ if scale_label == "Custom...":
     )
     try:
         scale_values = [float(x.strip()) for x in custom_values.split(',')]
-    except:
+    except Exception:
         st.sidebar.error("Ongeldige invoer. Gebruik komma's om getallen te scheiden.")
         scale_values = [0, 25, 50, 75, 100]
 else:
@@ -90,8 +90,7 @@ for c in criteria:
     weging_pct[c] = w
 # Check subcriteria sum
 total_sub = sum(weging_pct.values())
-st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  
-(moet = {kwaliteit_pct}%)")
+st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  \n(moet = {kwaliteit_pct}%)")
 if total_sub != kwaliteit_pct:
     st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
 # Max punten per criterium
@@ -102,9 +101,9 @@ for c in criteria:
     )
     max_points_criteria[c] = mp
 
-# Prijs: weergeven onder criteria\ nst.sidebar.markdown("---")
-st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  
-**Max punten Prijs:** {int(prijs_pct*10)}")
+# Prijs onder criteria
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  \n**Max punten Prijs:** {int(prijs_pct*10)}")
 max_price_points = st.sidebar.number_input(
     "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
 )
@@ -117,9 +116,10 @@ for c in criteria:
         f"Score {c}", options=[str(x) for x in scale_values], key=f"score_eigen_{c}"
     )
     verwachte_scores_eigen[c] = float(s)
-# Prijspositie\ nmargin_pct = st.sidebar.number_input(
+# Prijspositie
+margin_pct = st.sidebar.number_input(
     "% duurder dan goedkoopste", min_value=0.0, max_value=100.0,
-    value=10.0, step=0.1, key="margin_pct"
+    value=10.0, step=0.1
 )
 eigen_prijs_points = max_price_points * max(0, 1 - margin_pct/100)
 st.sidebar.markdown(f"**Eigen Prijsscore:** {eigen_prijs_points:.1f} punten")
