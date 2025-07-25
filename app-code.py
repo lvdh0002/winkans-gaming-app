@@ -6,17 +6,43 @@ import numpy as np
 st.set_page_config(page_title="Tender Analyse Tool", layout="wide")
 st.title("🔍 Intuïtieve Tender Analyse Tool")
 
+# Helper to track last changed field
+if 'last_changed' not in st.session_state:
+    st.session_state.last_changed = 'quality'
+def set_last(field):
+    st.session_state.last_changed = field
+
 # --- Stap 1: Beoordelingsmethodiek ---
 st.sidebar.header("Stap 1: Beoordelingsmethodiek")
-# Prijs-Kwaliteit verhouding: gebruiker vult kwaliteit (%), prijs = 100 - kwaliteit
-kwaliteit_pct = st.sidebar.number_input(
-    "Kwaliteit (%) (vul één in)", min_value=0, max_value=100, value=60, step=1,
-    help="Vul kwaliteit in; prijs wordt automatisch 100 - kwaliteit"
-)
-prijs_pct = 100 - kwaliteit_pct
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%\n- **Prijs:** {prijs_pct}%")
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    st.number_input(
+        "Kwaliteit (%)", min_value=0, max_value=100,
+        key='quality_input', value=60, step=1,
+        help="Vul kwaliteit in; prijs wordt automatisch 100 - kwaliteit",
+        on_change=set_last, args=('quality',)
+    )
+with col2:
+    st.number_input(
+        "Prijs (%)", min_value=0, max_value=100,
+        key='price_input', value=40, step=1,
+        help="Vul prijs in; kwaliteit wordt automatisch 100 - prijs",
+        on_change=set_last, args=('price',)
+    )
+# Compute paired values
+if st.session_state.last_changed == 'quality':
+    kwaliteit_pct = st.session_state.quality_input
+    prijs_pct = 100 - kwaliteit_pct
+    st.session_state.price_input = prijs_pct
+else:
+    prijs_pct = st.session_state.price_input
+    kwaliteit_pct = 100 - prijs_pct
+    st.session_state.quality_input = kwaliteit_pct
+# Display
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
+- **Prijs:** {prijs_pct}%")
 
-# Puntenschaal selectie
+# --- Puntenschaal selectie ---
 st.sidebar.subheader("Puntenschaal voor beoordeling")
 scales = {
     "0-2-4-6-8-10": [0, 2, 4, 6, 8, 10],
@@ -51,7 +77,7 @@ num_criteria = st.sidebar.selectbox(
 )
 criteria = [f"C{i+1}" for i in range(num_criteria)]
 
-# Gewichten per subcriterium en automatische vertaling naar max punten
+# Gewichten per subcriterium (moeten optellen tot kwaliteit_pct)
 st.sidebar.subheader("Gewichten & Max punten per criterium")
 kwaliteit_max_totaal = kwaliteit_pct * 10
 weging_pct = {}
@@ -59,37 +85,41 @@ max_points_criteria = {}
 for c in criteria:
     w = st.sidebar.number_input(
         f"Weging {c} (%)", min_value=0, max_value=100,
-        value=int(100/num_criteria), key=f"w_{c}"
+        value=int(kwaliteit_pct/num_criteria), key=f"w_{c}"
     )
-    default_pts = int((w/100) * kwaliteit_max_totaal)
+    weging_pct[c] = w
+# Check subcriteria sum
+total_sub = sum(weging_pct.values())
+st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  
+(moet = {kwaliteit_pct}%)")
+if total_sub != kwaliteit_pct:
+    st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
+# Max punten per criterium
+for c in criteria:
+    default_pts = int((weging_pct[c]/100) * kwaliteit_max_totaal)
     mp = st.sidebar.number_input(
         f"Max punten {c}", min_value=1, value=default_pts, key=f"mp_{c}"
     )
-    weging_pct[c] = w
     max_points_criteria[c] = mp
 
-# Prijs: max punten automatisch op basis van prijs_pct*10, kan aanpassen
-st.sidebar.markdown("---")
-prijs_max_default = int(prijs_pct * 10)
+# Prijs: weergeven onder criteria\ nst.sidebar.markdown("---")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  
+**Max punten Prijs:** {int(prijs_pct*10)}")
 max_price_points = st.sidebar.number_input(
-    "Max punten Prijs", min_value=1, value=prijs_max_default, key="max_price"
+    "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
 )
 
 # --- Stap 3: Verwachte scores Eigen partij ---
 st.sidebar.header("Stap 3: Verwachte scores Eigen partij")
-# Kwaliteitsscores
-st.sidebar.subheader("Kwaliteitsscores")
 verwachte_scores_eigen = {}
 for c in criteria:
     s = st.sidebar.selectbox(
         f"Score {c}", options=[str(x) for x in scale_values], key=f"score_eigen_{c}"
     )
     verwachte_scores_eigen[c] = float(s)
-
-# Prijsscore op basis van % duurder dan goedkoopste
-st.sidebar.subheader("Prijspositie")
-margin_pct = st.sidebar.number_input(
-    "% duurder dan goedkoopste", min_value=0.0, max_value=100.0, value=10.0, step=0.1
+# Prijspositie\ nmargin_pct = st.sidebar.number_input(
+    "% duurder dan goedkoopste", min_value=0.0, max_value=100.0,
+    value=10.0, step=0.1, key="margin_pct"
 )
 eigen_prijs_points = max_price_points * max(0, 1 - margin_pct/100)
 st.sidebar.markdown(f"**Eigen Prijsscore:** {eigen_prijs_points:.1f} punten")
@@ -183,5 +213,4 @@ if st.button("Bereken winkansen"):
     st.write(f"- Totaal: {eigen_totaal:.2f}")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
-
 
