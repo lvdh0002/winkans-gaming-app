@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 # --- Page Config ---
-st.set_page_config(page_title="Tender Analyse Tool", layout="wide")
-st.title("🔍 Intuïtieve Tender Analyse Tool")
+st.set_page_config(page_title="Winkans Berekenen Tool", layout="wide")
+st.title("Tool om de winkansen te berekenen op basis van BPKV-methode (Beste Prijs-kwaliteitverhouding")
 
 # Helper to track last changed field
 if 'last_changed' not in st.session_state:
@@ -34,8 +34,7 @@ auto_quality = st.session_state.quality_input
 kwaliteit_pct = auto_quality
 prijs_pct = 100 - auto_quality
 # Display
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
-- **Prijs:** {prijs_pct}%")
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  - **Prijs:** {prijs_pct}%")
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
@@ -145,7 +144,7 @@ eigen_prijs_points = max_price_points * max(0, 1 - margin_pct/100)
 st.sidebar.markdown(f"**Eigen Prijsscore:** {eigen_prijs_points:.1f} punten")
 
 # --- Scenario invoer concurrenten ---
-st.header("📥 Concurrentsituaties (max 15)")
+st.header("Concurrentscenario's (max 15)")
 num_scen = st.number_input(
     "Aantal situaties", min_value=1, max_value=15, value=3, step=1
 )
