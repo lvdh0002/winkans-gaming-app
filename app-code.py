@@ -34,7 +34,8 @@ auto_quality = st.session_state.quality_input
 kwaliteit_pct = auto_quality
 prijs_pct = 100 - auto_quality
 # Display
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  - **Prijs:** {prijs_pct}%")
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
+- **Prijs:** {prijs_pct}%")
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
@@ -77,26 +78,50 @@ st.sidebar.subheader("Gewichten & Max punten per criterium")
 kwaliteit_max_totaal = kwaliteit_pct * 10
 weging_pct = {}
 max_points_criteria = {}
+
+# Callback generator om mp bij te werken
 for c in criteria:
+    def make_update_mp(criterium):
+        def update_mp():
+            default_val = int((st.session_state[f"w_{criterium}"] / 100) * kwaliteit_max_totaal)
+            st.session_state[f"mp_{criterium}"] = default_val
+        return update_mp
+
+# Eerst definieer gewichten inputs met callbacks
+for c in criteria:
+    default_w = int(kwaliteit_pct / num_criteria)
     w = st.sidebar.number_input(
         f"Weging {c} (%)", min_value=0, max_value=100,
-        value=int(kwaliteit_pct/num_criteria), key=f"w_{c}"
+        value=default_w, key=f"w_{c}",
+        on_change=make_update_mp(c)
     )
     weging_pct[c] = w
-# Check subcriteria sum
-total_sub = sum(weging_pct.values())
-st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  \n(moet = {kwaliteit_pct}%)")
-if total_sub != kwaliteit_pct:
-    st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
-# Max punten per criterium
-for c in criteria:
-    default_pts = int((weging_pct[c]/100) * kwaliteit_max_totaal)
+    # Bepaal default mp op basis van w
+    default_pts = int((w / 100) * kwaliteit_max_totaal)
+    # Initialiseer sessiestate voor mp als nog niet gezet
+    if f"mp_{c}" not in st.session_state:
+        st.session_state[f"mp_{c}"] = default_pts
+    # Toon mp input
     mp = st.sidebar.number_input(
-        f"Max punten {c}", min_value=1, value=default_pts, key=f"mp_{c}"
+        f"Max punten {c}", min_value=1,
+        value=st.session_state[f"mp_{c}"], key=f"mp_{c}"
     )
     max_points_criteria[c] = mp
 
+# Check subcriteria sum
+total_sub = sum(weging_pct.values())
+st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  
+(moet = {kwaliteit_pct}%)")
+if total_sub != kwaliteit_pct:
+    st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
+
 # Prijs onder criteria
+st.sidebar.markdown("---")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  
+**Max punten Prijs:** {int(prijs_pct*10)}")
+max_price_points = st.sidebar.number_input(
+    "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
+)
 st.sidebar.markdown("---")
 st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  \n**Max punten Prijs:** {int(prijs_pct*10)}")
 max_price_points = st.sidebar.number_input(
@@ -208,6 +233,5 @@ if st.button("Bereken winkansen"):
     st.write(f"- Totaal: {eigen_totaal:.2f}")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
-
 
 
