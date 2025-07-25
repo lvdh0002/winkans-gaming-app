@@ -31,15 +31,11 @@ with col2:
     )
 # Compute paired values
 auto_quality = st.session_state.quality_input
-if st.session_state.last_changed == 'quality':
-    kwaliteit_pct = auto_quality
-    prijs_pct = 100 - auto_quality
-    st.session_state['price_input'] = prijs_pct
-else:
-    prijs_pct = st.session_state.price_input
-    kwaliteit_pct = 100 - prijs_pct
-    st.session_state['quality_input'] = kwaliteit_pct
+kwaliteit_pct = auto_quality
+prijs_pct = 100 - auto_quality
 # Display
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
+- **Prijs:** {prijs_pct}%")
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
@@ -213,5 +209,6 @@ if st.button("Bereken winkansen"):
     st.write(f"- Totaal: {eigen_totaal:.2f}")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
+
 
 
