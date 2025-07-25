@@ -109,8 +109,7 @@ for c in criteria:
 
 # Check subcriteria sum
 total_sub = sum(weging_pct.values())
-st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  
-(moet = {kwaliteit_pct}%)")
+st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  (moet = {kwaliteit_pct}%)")
 if total_sub != kwaliteit_pct:
     st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
 
