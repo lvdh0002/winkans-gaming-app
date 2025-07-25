@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 # --- Page Config ---
-st.set_page_config(page_title="Tender Analyse Tool", layout="wide")
-st.title("🔍 Intuïtieve Tender Analyse Tool")
+st.set_page_config(page_title="Winkans Berekenen Tool", layout="wide")
+st.title("Winkensen berkenen op basis van BPKV-methode (Beste Prijs Kwaliteit Verhouding)")
 
 # Helper to track last changed field
 if 'last_changed' not in st.session_state:
@@ -34,7 +34,6 @@ auto_quality = st.session_state.quality_input
 kwaliteit_pct = auto_quality
 prijs_pct = 100 - auto_quality
 # Display
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  - **Prijs:** {prijs_pct}%")
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
@@ -72,42 +71,26 @@ num_criteria = st.sidebar.selectbox(
 )
 criteria = [f"C{i+1}" for i in range(num_criteria)]
 
-# Gewichten per subcriterium (moeten optellen tot kwaliteit_pct)
+# Gewichten & Max punten per criterium
 st.sidebar.subheader("Gewichten & Max punten per criterium")
-kwaliteit_max_totaal = kwaliteit_pct * 10
 weging_pct = {}
 max_points_criteria = {}
 
-# Callback generator om mp bij te werken
 for c in criteria:
-    def make_update_mp(criterium):
-        def update_mp():
-            default_val = int((st.session_state[f"w_{criterium}"] / 100) * kwaliteit_max_totaal)
-            st.session_state[f"mp_{criterium}"] = default_val
-        return update_mp
-
-# Eerst definieer gewichten inputs met callbacks
-for c in criteria:
-    default_w = int(kwaliteit_pct / num_criteria)
+    # Weging in % (moet samen gelijk zijn aan kwaliteit_pct)
     w = st.sidebar.number_input(
-        f"Weging {c} (%)", min_value=0, max_value=100,
-        value=default_w, key=f"w_{c}",
-        on_change=make_update_mp(c)
+        f"Weging {c} (%)", min_value=0, max_value=kwaliteit_pct,
+        value=int(kwaliteit_pct/num_criteria), key=f"w_{c}"
     )
     weging_pct[c] = w
-    # Bepaal default mp op basis van w
-    default_pts = int((w / 100) * kwaliteit_max_totaal)
-    # Initialiseer sessiestate voor mp als nog niet gezet
-    if f"mp_{c}" not in st.session_state:
-        st.session_state[f"mp_{c}"] = default_pts
-    # Toon mp input
+    # Max punten = w% * 10 (dus 25% → 250 punten)
+    default_pts = w * 10
     mp = st.sidebar.number_input(
-        f"Max punten {c}", min_value=1,
-        value=st.session_state[f"mp_{c}"], key=f"mp_{c}"
+        f"Max punten {c}", min_value=1, value=default_pts, key=f"mp_{c}"
     )
     max_points_criteria[c] = mp
 
-# Check subcriteria sum
+# Controle: subcriteria-gewichten moeten optellen tot kwaliteit_pct
 total_sub = sum(weging_pct.values())
 st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  (moet = {kwaliteit_pct}%)")
 if total_sub != kwaliteit_pct:
@@ -115,12 +98,12 @@ if total_sub != kwaliteit_pct:
 
 # Prijs onder criteria
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  **Max punten Prijs:** {int(prijs_pct*10)}")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  **Max punten Prijs:** {prijs_pct*10:.0f}")
 max_price_points = st.sidebar.number_input(
     "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
 )
 
-# --- Stap 3: Verwachte scores Eigen partij ---: Verwachte scores Eigen partij ---
+# --- Stap 3: Verwachte scores Eigen partij ---
 st.sidebar.header("Stap 3: Verwachte scores Eigen partij")
 verwachte_scores_eigen = {}
 for c in criteria:
@@ -225,4 +208,5 @@ if st.button("Bereken winkansen"):
     st.write(f"- Totaal: {eigen_totaal:.2f}")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
+
 
