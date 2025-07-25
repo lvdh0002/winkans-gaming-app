@@ -46,7 +46,7 @@ max_scale = max(scale_values)
 # --- Stap 2: Gunningscriteria ---
 st.sidebar.header("Stap 2: Gunningscriteria")
 # Aantal kwaliteitscriteria\ nnum_criteria = st.sidebar.selectbox(
-  "Aantal kwaliteitscriteria (1-10)", list(range(1, 11)), index=3
+"Aantal kwaliteitscriteria (1-10)", list(range(1, 11)), index=3
 )
 criteria = [f"C{i+1}" for i in range(num_criteria)]
 
