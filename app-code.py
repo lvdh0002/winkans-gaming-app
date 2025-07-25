@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 
 # --- Page Config ---
-st.set_page_config(page_title="Winkans Berekenen Tool", layout="wide")
-st.title("Tool om de winkansen te berekenen op basis van BPKV-methode (Beste Prijs-kwaliteitverhouding")
+st.set_page_config(page_title="Tender Analyse Tool", layout="wide")
+st.title("🔍 Intuïtieve Tender Analyse Tool")
 
 # Helper to track last changed field
 if 'last_changed' not in st.session_state:
@@ -109,7 +109,8 @@ for c in criteria:
 
 # Check subcriteria sum
 total_sub = sum(weging_pct.values())
-st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  (moet = {kwaliteit_pct}%)")
+st.sidebar.markdown(f"**Totaal subcriteria gewicht:** {total_sub}%  
+(moet = {kwaliteit_pct}%)")
 if total_sub != kwaliteit_pct:
     st.sidebar.error("Subcriteria-gewichten moeten optellen tot het gekozen kwaliteit-percentage.")
 
@@ -119,13 +120,8 @@ st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  **Max punten Prijs:** {in
 max_price_points = st.sidebar.number_input(
     "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
 )
-st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  \n**Max punten Prijs:** {int(prijs_pct*10)}")
-max_price_points = st.sidebar.number_input(
-    "Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price"
-)
 
-# --- Stap 3: Verwachte scores Eigen partij ---
+# --- Stap 3: Verwachte scores Eigen partij ---: Verwachte scores Eigen partij ---
 st.sidebar.header("Stap 3: Verwachte scores Eigen partij")
 verwachte_scores_eigen = {}
 for c in criteria:
@@ -142,7 +138,7 @@ eigen_prijs_points = max_price_points * max(0, 1 - margin_pct/100)
 st.sidebar.markdown(f"**Eigen Prijsscore:** {eigen_prijs_points:.1f} punten")
 
 # --- Scenario invoer concurrenten ---
-st.header("Concurrentscenario's (max 15)")
+st.header("📥 Concurrentsituaties (max 15)")
 num_scen = st.number_input(
     "Aantal situaties", min_value=1, max_value=15, value=3, step=1
 )
@@ -230,5 +226,4 @@ if st.button("Bereken winkansen"):
     st.write(f"- Totaal: {eigen_totaal:.2f}")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
-
 
