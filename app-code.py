@@ -34,8 +34,7 @@ auto_quality = st.session_state.quality_input
 kwaliteit_pct = auto_quality
 prijs_pct = 100 - auto_quality
 # Display
-st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  
-- **Prijs:** {prijs_pct}%")
+st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  - **Prijs:** {prijs_pct}%")
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
