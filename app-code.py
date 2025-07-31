@@ -179,22 +179,22 @@ if st.button("Bereken winkansen"):
 st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
 kwal_advies = []
 for row in vergelijking:
-       if row['Status'] == 'LOSE':
-           comp_tot = float(row['Comp (K+P)'].split('=')[-1])
-           gap = comp_tot - jde_total + 0.01
-           for c in criteria:
-               current = verwachte_scores_eigen[c]
-               for nxt in scale_values:
-                   if nxt > current:
-                       gain = score_to_points(nxt, max_points_criteria[c]) - score_to_points(current, max_points_criteria[c])
-                       if gain >= gap:
-                           kwal_advies.append({
-                               'Scenario': row['Scenario'],
-                               'Criterium': c,
-                               'Huidig→Nodig': f"{current}→{nxt}",
-                               'Extra punten': round(gain,1)
-                           })
-                           break
+    if row['Status'] == 'LOSE':
+        comp_tot = float(row['Comp (K+P)'].split('=')[-1])
+        gap = comp_tot - jde_total + 0.01
+        for c in criteria:
+            current = verwachte_scores_eigen[c]
+            for nxt in scale_values:
+                if nxt > current:
+                    gain = score_to_points(nxt, max_points_criteria[c]) - score_to_points(current, max_points_criteria[c])
+                    if gain >= gap:
+                        kwal_advies.append({
+                            'Scenario': row['Scenario'],
+                            'Criterium': c,
+                            'Huidig→Nodig': f"{current}→{nxt}",
+                            'Extra punten': round(gain,1)
+                        })
+                        break
     if kwal_advies:
         df_adv_kw = pd.DataFrame(kwal_advies).set_index('Scenario')
         st.table(df_adv_kw)
