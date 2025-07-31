@@ -41,13 +41,13 @@ scales = {
     "0-2-4-6-8-10": [0,2,4,6,8,10],
     "0-2,5-5-7,5-10": [0,2.5,5,7.5,10],
     "0%-20%-40%-60%-80%-100%": [0,20,40,60,80,100],
-    "0%-25%-50%-75%-100%": [0,25,50,75,100],
-    "0%-30%-50%-80%-100%": [0,30,50,80,100],
-    "0%-30%-50%-70%-100%": [0,30,50,70, 100],
-    "Aangepast...": None
+    "0-25-50-75-100": [0,25,50,75,100],
+    "0-30-50-80-100": [0,30,50,80,100],
+    "0-30-50-70": [0,30,50,70],
+    "Custom...": None
 }
 scale_label = st.sidebar.selectbox("Kies een schaal", list(scales.keys()))
-if scale_label == "Aangepast...":
+if scale_label == "Custom...":
     vals = st.sidebar.text_input("Eigen schaal (komma-gescheiden)", "0,25,50,75,100")
     try:
         scale_values = [float(x) for x in vals.split(",")]
@@ -63,7 +63,7 @@ st.sidebar.header("Stap 2: Gunningscriteria")
 num_criteria = st.sidebar.selectbox("Aantal kwaliteitscriteria (1-10)", list(range(1,11)), index=3)
 criteria = [f"C{i+1}" for i in range(num_criteria)]
 
-st.sidebar.subheader("Weging & max. aantal punten per criterium")
+st.sidebar.subheader("Gewichten & Max punten per criterium")
 weging_pct = {}
 max_points_criteria = {}
 for c in criteria:
@@ -71,21 +71,21 @@ for c in criteria:
                                  value=int(kwaliteit_pct/num_criteria), key=f"w_{c}")
     weging_pct[c] = w
     default_pts = w * 10
-    mp = st.sidebar.number_input(f"Max. punten {c}", min_value=1, value=default_pts, key=f"mp_{c}")
+    mp = st.sidebar.number_input(f"Max punten {c}", min_value=1, value=default_pts, key=f"mp_{c}")
     max_points_criteria[c] = mp
 # controle
 total_sub = sum(weging_pct.values())
-st.sidebar.markdown(f"**Totale weging subcriteria Kwaliteit:** {total_sub}% (moet = {kwaliteit_pct}% )")
+st.sidebar.markdown(f"**Totaal KG-gewichten:** {total_sub}% (moet = {kwaliteit_pct}% )")
 if total_sub != kwaliteit_pct:
-    st.sidebar.error("Subcriteria-wegingen moeten optellen tot de totale kwaliteitsweging.")
+    st.sidebar.error("Subcriteria-gewichten moeten optellen tot het kwaliteit-percentage.")
 
 # prijs punten
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"**Prijsweging:** {prijs_pct}%  **Max. punten Prijs:** {prijs_pct*10:.0f}")
-max_price_points = st.sidebar.number_input("Max. punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price")
+st.sidebar.markdown(f"**Prijs gewicht:** {prijs_pct}%  **Max prijspt:** {prijs_pct*10:.0f}")
+max_price_points = st.sidebar.number_input("Max punten Prijs", min_value=1, value=int(prijs_pct*10), key="max_price")
 
-# --- Stap 3: Verwachte scores JDE ---
-st.sidebar.header("Stap 3: Verwachte scores JDE")
+# --- Stap 3: Verwachte scores Eigen partij ---
+st.sidebar.header("Stap 3: Verwachte scores Eigen partij")
 verwachte_scores_eigen = {}
 for c in criteria:
     score = st.sidebar.selectbox(f"Score {c}", [str(x) for x in scale_values], key=f"score_eigen_{c}")
@@ -95,8 +95,8 @@ eigen_prijs_points = max_price_points * (1 - margin_pct/100)
 st.sidebar.markdown(f"**Eigen Prijsscore:** {eigen_prijs_points:.1f}")
 
 # --- Scenario invoer concurrenten ---
-st.header("Scenario's score concurrenten (max 15)")
-num_scen = st.number_input("Aantal scenario's",1,15,3,1)
+st.header("📥 Concurrentsituaties (max 15)")
+num_scen = st.number_input("Aantal situaties",1,15,3,1)
 scenarios = []
 for i in range(int(num_scen)):
     with st.expander(f"Situatie {i+1}"):
@@ -110,49 +110,86 @@ for i in range(int(num_scen)):
 # --- Analyse & Resultaten ---
 st.header("Resultaten")
 if st.button("Bereken winkansen"):
-    def score_to_points(s,maxp): return (s/100)*maxp if max_scale>10 else (s/max_scale)*maxp
+    # Functie om schaalscore naar punten te converteren
+    def score_to_points(s, maxp):
+        return (s/100)*maxp if max_scale>10 else (s/max_scale)*maxp
 
-    # eigen
-    eigen_q_pts = sum(score_to_points(verwachte_scores_eigen[c],max_points_criteria[c]) for c in criteria)
-    eigen_total = eigen_q_pts + eigen_prijs_points
+    # Bereken JDE's punten
+    jde_quality_pts = sum(
+        score_to_points(verwachte_scores_eigen[c], max_points_criteria[c])
+        for c in criteria
+    )
+    jde_price_pts = eigen_prijs_points
+    jde_total = jde_quality_pts + jde_price_pts
 
-    # samenvatting
-    summary = []
+    # Vergelijk JDE met elke concurrent
+    vergelijking = []
     for s in scenarios:
-        kval = sum(score_to_points(s['kval_scores'][c],max_points_criteria[c]) for c in criteria)
-        tot = kval + s['prijs_pts']
-        status = 'WIN' if eigen_total>tot else 'LOSE'
-        gap = max(0, tot-eigen_total)
-        summary.append({'Naam':s['naam'],'Status':status,'Gap prijspt':round(gap,2)})
-    df_sum = pd.DataFrame(summary)
-    st.subheader("Winst/Verlies Overzicht")
-    st.table(df_sum)
+        comp_quality_pts = sum(
+            score_to_points(s['kval_scores'][c], max_points_criteria[c])
+            for c in criteria
+        )
+        comp_price_pts = s['prijs_pts']
+        comp_total = comp_quality_pts + comp_price_pts
+        # Bepaal status
+        if jde_total > comp_total:
+            status = 'WIN'
+        elif jde_total < comp_total:
+            status = 'LOSE'
+        else:
+            status = 'DRAW'
+        vergelijking.append({
+            'Scenario': s['naam'],
+            'JDE (K+P)': f"{round(jde_quality_pts,1)}+{round(jde_price_pts,1)}={round(jde_total,1)}",
+            'Comp (K+P)': f"{round(comp_quality_pts,1)}+{round(comp_price_pts,1)}={round(comp_total,1)}",
+            'Status': status
+        })
+    df_verg = pd.DataFrame(vergelijking).set_index('Scenario')
+    st.subheader("Vergelijking JDE vs scenario")
+    st.table(df_verg)
 
-    # detail
-    st.subheader("Detail per situatie")
-    for row in summary:
-        st.markdown(f"**{row['Naam']}**: {row['Status']}")
-        if row['Status']=='LOSE':
-            need=row['Gap prijspt']; pct_need=round((need/max_price_points)*100,1)
-            st.write(f"- Mist {need} prijspt (~{pct_need}% van max). Pas prijs aan.")
-        st.write('---')
-
-    # wat als kwaliteit beter?
-    st.subheader("Wat als je beter scoort op kwaliteit?")
-    curr_q = {c: score_to_points(verwachte_scores_eigen[c],max_points_criteria[c]) for c in criteria}
-    improvements=[]
-    for s in scenarios:
-        kval=sum(score_to_points(s['kval_scores'][c],max_points_criteria[c]) for c in criteria)
-        tot=kval+s['prijs_pts']
-        if eigen_total<=tot:
-            for c in criteria:
-                gain=max_points_criteria[c]-curr_q[c]
-                new_tot=eigen_total+gain
-                improvements.append({'Situatie':s['naam'],'Criterium':c,'Extra Q-punten':round(gain,2),'Win na max Cx':'Yes' if new_tot>tot else 'No'})
-    if improvements:
-        st.table(pd.DataFrame(improvements))
+    # Prijsadvies om te winnen
+    st.subheader("Prijsadvies om te winnen")
+    prijs_advies = []
+    for row in vergelijking:
+        if row['Status'] == 'LOSE':
+            comp_tot = float(row['Comp (K+P)'].split('=')[-1])
+            need_pts = comp_tot - jde_quality_pts + 0.01
+            new_price_pct = (1 - need_pts/max_price_points) * 100
+            prijs_advies.append({
+                'Scenario': row['Scenario'],
+                'Max % duurder dan goedkoopste': f"{new_price_pct:.1f}%"
+            })
+    if prijs_advies:
+        df_adv_prijs = pd.DataFrame(prijs_advies).set_index('Scenario')
+        st.table(df_adv_prijs)
     else:
-        st.write("Je wint in alle scenario's.")
+        st.write("JDE wint qua prijs in alle scenario's.")
+
+    # Kwaliteitsadvies om te winnen
+    st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
+    kwal_advies = []
+    for row in vergelijking:
+        if row['Status'] == 'LOSE':
+            comp_tot = float(row['Comp (K+P)'].split('=')[-1])
+            gap = comp_tot - jde_total + 0.01
+            for c in criteria:
+                current = verwachte_scores_eigen[c]
+                for nxt in scale_values:
+                    if nxt > current:
+                        gain = score_to_points(nxt, max_points_criteria[c]) - score_to_points(current, max_points_criteria[c])
+                        if gain >= gap:
+                            kwal_advies.append({
+                                'Scenario': row['Scenario'],
+                                'Criterium': c,
+                                'Huidig→Nodig': f"{current}→{nxt}",
+                                'Extra punten': round(gain,1)
+                            })
+                            break
+    if kwal_advies:
+        df_adv_kw = pd.DataFrame(kwal_advies).set_index('Scenario')
+        st.table(df_adv_kw)
+    else:
+        st.write("Geen enkele kwaliteitsverhoging in één stap is voldoende om te winnen.")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
-
