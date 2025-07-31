@@ -176,7 +176,7 @@ if st.button("Bereken winkansen"):
 ("JDE wint qua prijs in alle scenario's.")
 
     # Kwaliteitsadvies om te winnen
-    st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
+st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
     kwal_advies = []
     for row in vergelijking:
         if row['Status'] == 'LOSE':
