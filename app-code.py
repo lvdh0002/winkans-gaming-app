@@ -148,23 +148,32 @@ if st.button("Bereken winkansen"):
     st.subheader("Vergelijking JDE vs scenario")
     st.table(df_verg)
 
-    # Prijsadvies om te winnen
+        # Prijsadvies om te winnen
     st.subheader("Prijsadvies om te winnen")
     prijs_advies = []
     for row in vergelijking:
         if row['Status'] == 'LOSE':
             comp_tot = float(row['Comp (K+P)'].split('=')[-1])
             need_pts = comp_tot - jde_quality_pts + 0.01
-            new_price_pct = (1 - need_pts/max_price_points) * 100
+            # bereken maximale allowed overpricing
+            max_over_pct = (1 - need_pts/max_price_points) * 100
+            # huidige overpricing = margin_pct
+            # bereken hoeveel procent zakken
+            drop_pct = margin_pct - max_over_pct
             prijs_advies.append({
                 'Scenario': row['Scenario'],
-                'Max % duurder dan goedkoopste': f"{new_price_pct:.1f}%"
+                'Max % duurder dan goedkoopste': f"{max_over_pct:.1f}%",
+                'Moet zakken met (%)': f"{drop_pct:.1f}%"
             })
     if prijs_advies:
         df_adv_prijs = pd.DataFrame(prijs_advies).set_index('Scenario')
         st.table(df_adv_prijs)
     else:
         st.write("JDE wint qua prijs in alle scenario's.")
+
+    # Kwaliteitsadvies om te winnen bij gelijkblijvende prijs
+    st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
+("JDE wint qua prijs in alle scenario's.")
 
     # Kwaliteitsadvies om te winnen
     st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
@@ -193,3 +202,5 @@ if st.button("Bereken winkansen"):
         st.write("Geen enkele kwaliteitsverhoging in één stap is voldoende om te winnen.")
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
+
+
