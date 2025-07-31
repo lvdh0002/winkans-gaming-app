@@ -178,7 +178,7 @@ if st.button("Bereken winkansen"):
     # Kwaliteitsadvies om te winnen
 st.subheader("Kwaliteitsadvies om te winnen bij gelijkblijvende prijs")
 kwal_advies = []
-   for row in vergelijking:
+for row in vergelijking:
        if row['Status'] == 'LOSE':
            comp_tot = float(row['Comp (K+P)'].split('=')[-1])
            gap = comp_tot - jde_total + 0.01
