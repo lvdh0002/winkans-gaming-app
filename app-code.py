@@ -8,31 +8,39 @@ st.title("Tool om winkansen te berekenen o.b.v. de BPKV-methode (Beste Prijs Kwa
 
 # --- Stap 1: Beoordelingsmethodiek ---
 st.sidebar.header("Stap 1: Beoordelingsmethodiek")
+
+def _sync_from_quality() -> None:
+    st.session_state.price_input = 100 - st.session_state.quality_input
+
+def _sync_from_price() -> None:
+    st.session_state.quality_input = 100 - st.session_state.price_input
+
 col1, col2 = st.sidebar.columns(2)
 with col1:
-    kwaliteit_pct = st.number_input(
-        "Kwaliteit (%)", min_value=0, max_value=100,
-        value=60, step=1,
+    st.number_input(
+        "Kwaliteit (%)",
+        min_value=0,
+        max_value=100,
+        value=60,
+        step=1,
         help="Vul kwaliteit in; prijs wordt automatisch 100 - kwaliteit",
-        key="quality_input"
+        key="quality_input",
+        on_change=_sync_from_quality,
     )
 with col2:
-    prijs_pct = st.number_input(
-        "Prijs (%)", min_value=0, max_value=100,
-        value=40, step=1,
+    st.number_input(
+        "Prijs (%)",
+        min_value=0,
+        max_value=100,
+        value=40,
+        step=1,
         help="Vul prijs in; kwaliteit wordt automatisch 100 - prijs",
-        key="price_input"
+        key="price_input",
+        on_change=_sync_from_price,
     )
-# Synchroniseer
-if st.session_state.quality_input + st.session_state.price_input != 100:
-    # als kwaliteit net is aangepast
-    if st.session_state.quality_input != kwaliteit_pct:
-        prijs_pct = 100 - kwaliteit_pct
-        st.session_state.price_input = prijs_pct
-    else:
-        kwaliteit_pct = 100 - prijs_pct
-        st.session_state.quality_input = kwaliteit_pct
-# Toon
+
+kwaliteit_pct = st.session_state.quality_input
+prijs_pct = st.session_state.price_input
 st.sidebar.markdown(f"- **Kwaliteit:** {kwaliteit_pct}%  \n- **Prijs:** {prijs_pct}%")
 
 # --- Puntenschaal selectie ---
