@@ -1,8 +1,3 @@
-diff --git a/app-code.py b/app-code.py
-index db861f6a2829995933135f9035cb8e68d2847884..ac0d13585c57880fc69e73e87fbff7a3e57ba96b 100644
---- a/app-code.py
-+++ b/app-code.py
-@@ -1,60 +1,68 @@
  import streamlit as st
  import pandas as pd
  import numpy as np
