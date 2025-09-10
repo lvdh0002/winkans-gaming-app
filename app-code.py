@@ -263,5 +263,4 @@ index db861f6a2829995933135f9035cb8e68d2847884..ac0d13585c57880fc69e73e87fbff7a3
 +    st.table(df_overzicht)
  else:
      st.info("Klik op 'Bereken winkansen' om te starten.")
--
--
+
