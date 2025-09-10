@@ -1,13 +1,13 @@
- import streamlit as st
- import pandas as pd
- import numpy as np
+import streamlit as st
+import pandas as pd
+import numpy as np
  
- # --- Page Config ---
- st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
- st.title("Tool om winkansen te berekenen o.b.v. de BPKV-methode (Beste Prijs Kwaliteit Verhouding)")
- 
- # --- Stap 1: Beoordelingsmethodiek ---
- st.sidebar.header("Stap 1: Beoordelingsmethodiek")
+# --- Page Config ---
+st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
+st.title("Tool om winkansen te berekenen o.b.v. de BPKV-methode (Beste Prijs Kwaliteit Verhouding)")
+
+# --- Stap 1: Beoordelingsmethodiek ---
+st.sidebar.header("Stap 1: Beoordelingsmethodiek")
 +
 +def _sync_from_quality() -> None:
 +    st.session_state.price_input = 100 - st.session_state.quality_input
