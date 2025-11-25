@@ -215,9 +215,10 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
 
     doc.build(flow)
     buf.seek(0)
-    return buf.getvalue()
+   # --- Analyse & Resultaten ---
+st.header("Resultaten")
 
-#"):
+if st.button("Bereken winkansen"):
     jde_quality_pts = sum(score_to_points(verwachte_scores_eigen[c], max_points_criteria[c], max_scale) for c in criteria)
     jde_price_pts = eigen_prijs_points
     jde_total = jde_quality_pts + jde_price_pts
@@ -273,6 +274,7 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
 
         overzicht_rows.append({"Scenario": s["naam"], "JDE (totaal)": round(jde_total, 1), "Concurrent (totaal)": round(comp_total, 1), "Status": status, "Max % duurder (gelijkspel)": max_over_pct_txt, "Kwaliteitsadvies (1 stap)": qual_hint})
 
+    # Overzicht en downloads
     df_overzicht = pd.DataFrame(overzicht_rows).set_index("Scenario")
     st.subheader("Overzicht alle scenario's")
     st.dataframe(df_overzicht, use_container_width=True)
@@ -290,5 +292,7 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
         st.download_button("📄 Download printbare adviespagina (PDF)", data=pdf_bytes, file_name="advies_winkans_bpkv.pdf", mime="application/pdf")
     else:
         st.info("PDF niet beschikbaar (reportlab ontbreekt).")
-   else:
-        st.info("Klik op 'Bereken winkansen' om te starten.")
+
+else:
+    st.info("Klik op 'Bereken winkansen' om te starten.")
+
