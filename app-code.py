@@ -92,22 +92,22 @@ if st.button("Bereken winkansen"):
 
         drop_int,target_int=required_drop_piecewise(margin_pct,comp_margin,jde_quality_pts,comp_quality_pts,max_price_points)
         prijsactie="Geen actie nodig" if status=="WIN" else f"Verlaag {drop_int}% (naar {target_int}%)"
-
+        if status!="WIN" and drop_int>0: win_price+=1
         if status=="WIN": win_no_action+=1
-        elif drop_int>0: win_price+=1
 
-        # Kwaliteitsactie alleen als kwaliteit alleen tot WIN leidt
+        # Kwaliteitsactie: alleen als kwaliteit alleen tot WIN leidt
         qual_action="-"
-        for c in criteria:
-            cur=float(verwachte_scores_eigen[c])
-            for nxt in [x for x in scale_values if x>cur]:
-                gain=score_to_points(nxt,max_points_criteria[c])-score_to_points(cur,max_points_criteria[c])
-                if jde_quality_pts+gain+jde_price_pts>comp_total+0.005:
-                    qual_action=f"Verhoog {c} {int(cur)}→{int(nxt)} (+{int(gain)} ptn)"
-                    win_quality+=1
-                    quality_steps_info.append((c,int(cur),int(nxt),int(gain)))
-                    break
-            if qual_action!="-": break
+        if status!="WIN":
+            for c in criteria:
+                cur=float(verwachte_scores_eigen[c])
+                for nxt in [x for x in scale_values if x>cur]:
+                    gain=score_to_points(nxt,max_points_criteria[c])-score_to_points(cur,max_points_criteria[c])
+                    if jde_quality_pts+gain+jde_price_pts>comp_total+0.005:
+                        qual_action=f"Verhoog {c} {int(cur)}→{int(nxt)} (+{int(gain)} ptn)"
+                        win_quality+=1
+                        break
+                if qual_action!="-": break
+            if qual_action=="-": qual_action="Ontoereikend"
 
         rows.append({
             "Scenario":f"{idx}. {s['naam']}",
@@ -129,15 +129,14 @@ if st.button("Bereken winkansen"):
     # Samenvatting
     st.subheader("📊 Samenvatting")
     st.markdown(f"""
-    - **WIN zonder actie:** {win_no_action}
-    - **WIN via prijs:** {win_price}
-    - **WIN via kwaliteit:** {win_quality}
-    - **Globaal prijsadvies:** verlaag {drop_int}% (naar {target_int}%)
+    • Zonder actie win je **{win_no_action} scenario's**.
+    • In **{win_price} scenario's** kun je winnen door prijs te verlagen.
+    • In **{win_quality} scenario's** kun je winnen door kwaliteit te verbeteren (zonder prijsverlaging).
+    • Globaal prijsadvies: verlaag {drop_int}% (naar {target_int}%).
     """)
-    if quality_steps_info:
-        st.markdown("**Maximale punten per kwaliteitscriterium:**")
-        for step in quality_steps_info:
-            st.markdown(f"- {step[0]}: {step[1]}→{step[2]} (+{step[3]} ptn)")
+    st.markdown("**Punten per kwaliteitscriterium per stap:**")
+    for c in criteria:
+        st.markdown(f"- {c}: {max_points_criteria[c]/len(scale_values):.1f} ptn per stap")
 
     # PDF-export
     pdf_buf=io.BytesIO()
@@ -149,16 +148,16 @@ if st.button("Bereken winkansen"):
     flow.append(Spacer(1,6))
     flow.append(Paragraph("Advies: Winkans & Acties (BPKV)",styles["JDETitle"]))
     flow.append(Spacer(1,12))
-    flow.append(Paragraph(f"WIN zonder actie: {win_no_action} | WIN via prijs: {win_price} | WIN via kwaliteit: {win_quality}",styles["Normal"]))
+    flow.append(Paragraph(f"• Zonder actie win je {win_no_action} scenario's.",styles["Normal"]))
+    flow.append(Paragraph(f"• In {win_price} scenario's kun je winnen door prijs te verlagen.",styles["Normal"]))
+    flow.append(Paragraph(f"• In {win_quality} scenario's kun je winnen door kwaliteit te verbeteren.",styles["Normal"]))
+    flow.append(Paragraph(f"• Globaal prijsadvies: verlaag {drop_int}% (naar {target_int}%).",styles["Normal"]))
     flow.append(Spacer(1,8))
-    flow.append(Paragraph(f"Globaal prijsadvies: verlaag {drop_int}% (naar {target_int}%)",styles["Normal"]))
-    flow.append(Spacer(1,8))
-    if quality_steps_info:
-        flow.append(Paragraph("Maximale punten per kwaliteitscriterium:",styles["Normal"]))
-        for step in quality_steps_info:
-            flow.append(Paragraph(f"- {step[0]}: {step[1]}→{step[2]} (+{step[3]} ptn)",styles["Normal"]))
+    flow.append(Paragraph("Punten per kwaliteitscriterium per stap:",styles["Normal"]))
+    for c in criteria:
+        flow.append(Paragraph(f"- {c}: {max_points_criteria[c]/len(scale_values):.1f} ptn per stap",styles["Normal"]))
     flow.append(Spacer(1,12))
-    # Tabel met herfstige statuskleuren
+    # Tabel
     table_data=[list(df.columns)]+df.values.tolist()
     t=Table(table_data,colWidths=[80,60,60,70,70,70,70,80,80,130,160])
     t.setStyle(TableStyle([
@@ -175,17 +174,4 @@ if st.button("Bereken winkansen"):
     flow.append(Paragraph("BPKV = Beste Prijs-Kwaliteit Verhouding. Berekening op basis van inschatting van scores en marges.",styles["Normal"]))
     doc.build(flow)
     pdf_buf.seek(0)
-    st.download_button("📄 Download PDF (JDE-stijl, one-pager)",pdf_buf,"advies_winkans_jde.pdf","application**: herfstige tinten (beige/goud, geen felle kleuren).  
-✅ **Adviesroute**: als tekst onder tabel in PDF.  
-✅ **Samenvatting + uitleg**: boven en onder in PDF.  
-✅ **Kwaliteitsactie**: alleen als kwaliteit alleen tot WIN leidt.  
-✅ **Prijsactie bij DRAW**: altijd tonen.
-
----
-
-💡 **Extra intuïtieve verbeteringen**:
-- Voeg **kolom “Adviesroute”** in PDF (tekst: “Prijs”, “Kwaliteit”, “Geen actie”).
-- Gebruik **lichte achtergrond per status** (WIN = zacht mosgroen, LOSE = kastanjebruin, DRAW = goudbeige).
-
-Wil je dat ik deze **statuskleur per rij** en **Adviesroute-kolom** ook toevoeg in de PDF?  
-(→ Dan is het echt een sales-ready one-pager in JDE-stijl.)
+    st.download_button("📄 Download PDF (JDE-stijl, one-pager)",pdf_buf,"advies_winkans_jde.pdf",mime="application/pdf")
