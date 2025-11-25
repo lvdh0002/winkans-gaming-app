@@ -24,11 +24,6 @@ except Exception:
 
 # --- Page Config ---
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
-st.markdown(
-    """
-    https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap
-    """,
-    unsafe_allow_html=True,
 )
 
 # --- JDE Professional Huisstijl (beige/lichtbruin + wijnrood) ---
