@@ -19,7 +19,7 @@ html,body,.stApp {background-color:#F3E9DB;font-family:'Segoe UI','Aptos',sans-s
 .stButton>button {font-family:'Oswald',sans-serif!important;font-weight:700;background:#7A1F1F;color:#fff;border-radius:6px;}
 .stButton>button:hover {background:#4B2E2B;}
 thead tr th {background:#C8A165!important;color:#fff!important;}
-[data-testid="stSidebar"]>div:first-child {background:#7A1F1F!important;color:#fff;}
+[data-testid="stSidebar"]>div:first-child {background:#A13D3B!important;color:#fff;}
 [data-testid="stSidebar"] label {color:#fff!important;}
 </style>
 """, unsafe_allow_html=True)
@@ -179,8 +179,8 @@ if st.button("Bereken winkansen"):
         leftMargin=24, rightMargin=24, topMargin=24, bottomMargin=24
     )
     styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="JDETitle", parent=styles["Title"], textColor=colors.HexColor(PRIMARY_COLOR)))
-    styles.add(ParagraphStyle(name="JDENormal", parent=styles["Normal"], textColor=colors.black))
+    styles.add(ParagraphStyle(name="JDETitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=18, textColor=colors.HexColor(PRIMARY_COLOR)))
+    styles.add(ParagraphStyle(name="JDENormal", parent=styles["Normal"], fontName="Helvetica", fontSize=10, textColor=colors.black))
     styles.add(ParagraphStyle(name="JDEItalic", parent=styles["Normal"], fontName="Helvetica-Oblique", fontSize=8, textColor=colors.HexColor("#333")))
 
     flow = []
@@ -254,7 +254,6 @@ if st.button("Bereken winkansen"):
         styles["JDEItalic"]
     ))
 
-    # Beige pagina-achtergrond
     def draw_page_bg(canvas, doc):
         canvas.saveState()
         canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
