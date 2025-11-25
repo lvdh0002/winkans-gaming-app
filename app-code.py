@@ -1,9 +1,9 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import io
 import os
+import dataframe_image as dfi
 
 # --- Robust imports ---
 HAS_MPL = True
@@ -25,28 +25,25 @@ except Exception:
 # --- Page Config ---
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 
-# --- Font & CSS (Oswald + JDE huisstijl) ---
-
+# --- CSS voor huisstijl en fonts ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
 
-/* Koppen in Oswald */
+/* Kopjes in Oswald */
 h1, h2, h3, h4, .jde-title {
     font-family: 'Oswald', Arial, sans-serif !important;
     font-weight: 700 !important;
-    letter-spacing: 0.2px;
-    color: #7A1F1F; /* wijnrood */
+    color: #7A1F1F;
 }
 
-/* Sidebar en body in neutraal font (Aptos-achtig) */
-html, body, .stApp,
-.stMarkdown, .stSidebar, .stNumberInput label, .stSelectbox label {
+/* Body en labels in neutraal font */
+html, body, .stApp, .stMarkdown, .stSidebar, .stNumberInput label, .stSelectbox label {
     font-family: 'Segoe UI', 'Aptos', Arial, sans-serif !important;
     font-weight: 400 !important;
 }
 
-/* Knoppen in Oswald Bold */
+/* Knoppen */
 .stButton>button {
     font-family: 'Oswald', Arial, sans-serif !important;
     font-weight: 700 !important;
@@ -75,7 +72,6 @@ thead tr th { background-color: #C8A165 !important; color: #fff !important; }
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 # --- Huisstijl kleuren ---
 PRIMARY_COLOR = "#7A1F1F"
@@ -171,9 +167,9 @@ def find_min_margin_for_win(jde_quality_pts, comp_quality_pts, comp_margin, star
     while current >= 0:
         my_total, comp_total, _, _ = totals_with_margins(current, comp_margin, jde_quality_pts, comp_quality_pts)
         if my_total > comp_total + 0.005:
-            return current, start_margin - current, True
+            return current, start_margin - current
         current = round(current - step, 10)
-    return 0.0, start_margin, False
+    return 0.0, start_margin
 
 def best_one_step_quality_gain(current_scores_dict):
     best = None
@@ -186,119 +182,111 @@ def best_one_step_quality_gain(current_scores_dict):
                 best = (c, cur, float(nxt), float(gain))
     return best
 
-def scenario_scorecard(title, your_quality_pts, your_price_pts, comp_quality_pts, comp_price_pts):
-    if HAS_MPL:
-        total_you = your_quality_pts + your_price_pts
-        total_comp = comp_quality_pts + comp_price_pts
-        fig, ax = plt.subplots(figsize=(7.4, 2.8))
-        ax.barh(["Jij","Concurrent"], [your_quality_pts, comp_quality_pts], color=QUALITY_COLOR, label="Kwaliteit")
-        ax.barh(["Jij","Concurrent"], [your_price_pts, comp_price_pts], left=[your_quality_pts, comp_quality_pts], color=PRICE_COLOR, label="Prijs")
-        ax.set_xlabel("Punten")
-        ax.set_title(title, color=PRIMARY_COLOR)
-        ax.text(total_you+0.3,0,f"{total_you:.1f}",va="center",color=SECONDARY_BROWN)
-        ax.text(total_comp+0.3,1,f"{total_comp:.1f}",va="center",color=SECONDARY_BROWN)
-        ax.legend(loc="lower right")
-        st.pyplot(fig)
-    else:
-        st.bar_chart(pd.DataFrame({"Jij":[your_quality_pts+your_price_pts],"Concurrent":[comp_quality_pts+comp_price_pts]}))
-
-def dashboard_figure(rows):
-    if not HAS_MPL: return None
-    n=len(rows)
-    fig,ax=plt.subplots(figsize=(10,0.7*n+2))
-    y_you=np.arange(n)*2
-    y_comp=y_you+0.8
-    for i,r in enumerate(rows):
-        ax.barh(y_you[i],r["you_quality"],color=QUALITY_COLOR)
-        ax.barh(y_you[i],r["you_price"],left=r["you_quality"],color=PRICE_COLOR)
-        ax.barh(y_comp[i],r["comp_quality"],color="#66BB6A")
-        ax.barh(y_comp[i],r["comp_price"],left=r["comp_quality"],color="#42A5F5")
-        ax.text(r["you_quality"]+r["you_price"]+0.2,y_you[i],f"{r['you_quality']+r['you_price']:.1f}")
-        ax.text(r["comp_quality"]+r["comp_price"]+0.2,y_comp[i],f"{r['comp_quality']+r['comp_price']:.1f}")
-        ax.text(0,y_comp[i],r["naam"],va="center",ha="left",color=PRIMARY_COLOR,fontweight="bold")
-    ax.set_yticks([])
-    ax.set_xlabel("Punten")
-    ax.set_title("Dashboard: overzicht per scenario",color=PRIMARY_COLOR)
-    st.pyplot(fig)
-    return fig
-
-def make_pdf(summary_dict, df_overzicht, dashboard_fig=None):
-    if not HAS_RL: return None
-    buf=io.BytesIO()
-    doc=SimpleDocTemplate(buf,pagesize=A4)
-    styles=getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="JDETitle",parent=styles["Title"],textColor=colors.HexColor(PRIMARY_COLOR)))
-    flow=[]
-    if os.path.exists(LOGO_PATH): flow.append(Image(LOGO_PATH,width=100,height=48))
-    flow.append(Paragraph("Advies: Winkans & Acties (BPKV)",styles["JDETitle"]))
-    flow.append(Spacer(1,12))
-    flow.append(Paragraph(summary_dict["headline"],styles["Normal"]))
-    flow.append(Spacer(1,12))
-    table_data=[["Scenario","Status","Jouw punten","Concurrent","Prijsactie","Kwaliteitsadvies"]]
-    for idx,row in df_overzicht.reset_index().iterrows():
-        table_data.append([row["Scenario"],row["Status"],row["JDE (totaal)"],row["Concurrent (totaal)"],row["Prijsactie (%-punt)"],row["Kwaliteitsadvies (1 stap)"]])
-    t=Table(table_data)
-    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),('TEXTCOLOR',(0,0),(-1,0),colors.white),('GRID',(0,0),(-1,-1),0.25,colors.grey)]))
-    flow.append(t)
-    if dashboard_fig and HAS_MPL:
-        img_buf=io.BytesIO()
-        dashboard_fig.savefig(img_buf,format="png",dpi=160)
-        img_buf.seek(0)
-        flow.append(Image(ImageReader(img_buf),width=480,height=280))
-    doc.build(flow)
-    buf.seek(0)
-    return buf.getvalue()
-
 # --- Analyse ---
 st.header("Resultaten")
 if st.button("Bereken winkansen"):
-    jde_quality_pts=compute_quality_points(verwachte_scores_eigen)
-    overzicht_rows=[]
-    wins_no_action=wins_via_price=wins_via_quality=wins_via_combo=not_feasible=0
-    dashboard_rows=[]
+    jde_quality_pts = compute_quality_points(verwachte_scores_eigen)
+    overzicht_rows = []
+    dashboard_rows = []
+
     for s in scenarios:
-        comp_quality_pts=compute_quality_points(s["kval_scores"])
-        comp_margin=0.0 if s["is_cheapest"] else s["pct"]
-        my_total_now,comp_total_now,my_price_now,comp_price_now=totals_with_margins(margin_pct,comp_margin,jde_quality_pts,comp_quality_pts)
-        status="WIN" if my_total_now>comp_total_now else "LOSE" if my_total_now<comp_total_now else "DRAW"
-        st.markdown(f"### {s['naam']} — {status}")
-        st.write(f"Jouw totaal: {my_total_now:.1f} | Concurrent: {comp_total_now:.1f}")
-        with st.expander("Scorekaart"): scenario_scorecard(s["naam"],jde_quality_pts,my_price_now,comp_quality_pts,comp_price_now)
-        qual_hint="";price_drop_txt=""
-        if status=="WIN": wins_no_action+=1
+        comp_quality_pts = compute_quality_points(s["kval_scores"])
+        comp_margin = 0.0 if s["is_cheapest"] else s["pct"]
+        my_total_now, comp_total_now, my_price_now, comp_price_now = totals_with_margins(margin_pct, comp_margin, jde_quality_pts, comp_quality_pts)
+        status = "WIN" if my_total_now > comp_total_now else "LOSE" if my_total_now < comp_total_now else "DRAW"
+        verschil = round(my_total_now - comp_total_now, 1)
+
+        # Prijsadvies
+        target_margin, drop_win = find_min_margin_for_win(jde_quality_pts, comp_quality_pts, comp_margin, margin_pct)
+        prijsadvies = f"Verlaag {drop_win:.1f}%-punt (naar {target_margin:.1f}%)" if my_total_now < comp_total_now else "Geen actie nodig"
+
+        # Kwaliteitsadvies
+        best_step = best_one_step_quality_gain(verwachte_scores_eigen)
+        if best_step:
+            c, cur, nxt, gain = best_step
+            kwaliteitsadvies = f"Verhoog {c} van {cur}→{nxt} (+{gain:.1f} ptn)"
         else:
-            target_margin,drop_win,feasible=find_min_margin_for_win(jde_quality_pts,comp_quality_pts,comp_margin,margin_pct)
-            if drop_win>0:
-                if feasible:
-                    st.warning(f"Prijs-route: verlaag {drop_win:.1f}%-punt (naar {target_margin:.1f}%)")
-                    wins_via_price+=1
-                    price_drop_txt=f"{drop_win:.1f} (naar {target_margin:.1f}%)"
-                else:
-                    st.info("Zelfs als je de goedkoopste bent, prijs alleen niet genoeg. Combineer met kwaliteit.")
-            gap=comp_total_now-my_total_now
-            suggestion=None
-            for c in criteria:
-                cur=verwachte_scores_eigen[c]
-                for nxt in [n for n in scale_values if n>cur]:
-                    gain=score_to_points(nxt,max_points_criteria[c])
-                    if my_total_now+gain>comp_total_now: suggestion=(c,cur,nxt,gain);break
-                if suggestion: break
-            if suggestion:
-                c,cur,nxt,gain=suggestion
-                st.info(f"Kwaliteit-route: verhoog {c} van {cur} naar {nxt} (+{gain:.1f} ptn)")
-                qual_hint=f"{c}: {cur}→{nxt}"
-                wins_via_quality+=1
-            else:
-                best_step=best_one_step_quality_gain(verwachte_scores_eigen)
-                if best_step:
-                    c,cur,nxt,gain=best_step
-                    new_quality=jde_quality_pts+gain
-                    target_margin2,drop_win2,feasible2=find_min_margin_for_win(new_quality,comp_quality_pts,comp_margin,margin_pct)
-                    if feasible2 and drop_win2>0:
-                        st.info(f"Combi-route: verhoog {c} naar {nxt} (+{gain:.1f}) én verlaag prijs {drop_win2:.1f}%-punt")
-                        qual_hint=f"{c}: {cur}→{nxt}"
-                        price_drop_txt=f"{drop_win2:.1f} (naar {target_margin2:.1f}%)"
-                        wins_via_combo+=1
-                    else: not_feasible+=1
-                else: not_feasible+=1
-        overzicht_rows.append({"Scenario":s["naam"],"JDE (totaal)":round(my_total_now,1),"Concurrent (totaal)":round(comp_total_now,1),"Status":status,"Prijsactie (%-punt)":price_drop_txt,"Kwaliteitsadvies (1 stap)":qual_hint})
+            kwaliteitsadvies = "-"
+
+        overzicht_rows.append({
+            "Scenario": s["naam"],
+            "Status": status,
+            "JDE totaal": round(my_total_now,1),
+            "JDE prijs": round(my_price_now,1),
+            "JDE kwaliteit": round(jde_quality_pts,1),
+            "Concurrent totaal": round(comp_total_now,1),
+            "Conc prijs": round(comp_price_now,1),
+            "Conc kwaliteit": round(comp_quality_pts,1),
+            "Verschil": verschil,
+            "% duurder": f"{margin_pct:.1f}%" if not s["is_cheapest"] else "Goedkoopste",
+            "Prijsactie (%-punt)": prijsadvies,
+            "Kwaliteitsadvies": kwaliteitsadvies
+        })
+
+        dashboard_rows.append({
+            "naam": s["naam"],
+            "you_quality": jde_quality_pts,
+            "you_price": my_price_now,
+            "comp_quality": comp_quality_pts,
+            "comp_price": comp_price_now,
+            "status": status
+        })
+
+    df = pd.DataFrame(overzicht_rows)
+
+    # Kleurcodering
+    def color_status(val):
+        if val == "WIN": return "background-color: #81C784; color: black;"
+        if val == "LOSE": return "background-color: #E57373; color: black;"
+        return "background-color: #B0BEC5; color: black;"
+
+    styled_df = df.style.applymap(color_status, subset=["Status"])
+
+    st.subheader("Overzicht alle scenario's")
+    st.dataframe(styled_df, use_container_width=True)
+
+    # PNG-download
+    img_path = "table.png"
+    dfi.export(df.style.applymap(color_status, subset=["Status"]), img_path)
+    with open(img_path, "rb") as f:
+        st.download_button("📷 Download tabel als afbeelding (PNG)", f, "winkans_tabel.png", "image/png")
+
+    # PDF-download
+    if HAS_RL:
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4)
+        styles = getSampleStyleSheet()
+        styles.add(ParagraphStyle(name="JDETitle", parent=styles["Title"], textColor=colors.HexColor(PRIMARY_COLOR)))
+        flow = []
+        if os.path.exists(LOGO_PATH): flow.append(Image(LOGO_PATH, width=100, height=48))
+        flow.append(Paragraph("Advies: Winkans & Acties (BPKV)", styles["JDETitle"]))
+        flow.append(Spacer(1, 12))
+        table_data = [list(df.columns)] + df.values.tolist()
+        t = Table(table_data)
+        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),('TEXTCOLOR',(0,0),(-1,0),colors.white),('GRID',(0,0),(-1,-1),0.25,colors.grey)]))
+        flow.append(t)
+        doc.build(flow)
+        buf.seek(0)
+        st.download_button("📄 Download PDF (JDE-stijl)", buf, "advies_winkans.pdf", "application/pdf")
+    else:
+        st.info("PDF niet beschikbaar (reportlab ontbreekt).")
+
+    # Dashboard-grafiek
+    if HAS_MPL:
+        fig, ax = plt.subplots(figsize=(10, 0.7*len(dashboard_rows)+2))
+        y_you = np.arange(len(dashboard_rows))*2
+        y_comp = y_you+0.8
+        for i,r in enumerate(dashboard_rows):
+            ax.barh(y_you[i],r["you_quality"],color=QUALITY_COLOR)
+            ax.barh(y_you[i],r["you_price"],left=r["you_quality"],color=PRICE_COLOR)
+            ax.barh(y_comp[i],r["comp_quality"],color="#66BB6A")
+            ax.barh(y_comp[i],r["comp_price"],left=r["comp_quality"],color="#42A5F5")
+            ax.text(r["you_quality"]+r["you_price"]+0.2,y_you[i],f"{r['you_quality']+r['you_price']:.1f}")
+            ax.text(r["comp_quality"]+r["comp_price"]+0.2,y_comp[i],f"{r['comp_quality']+r['comp_price']:.1f}")
+            ax.text(0,y_comp[i],r["naam"],va="center",ha="left",color=PRIMARY_COLOR,fontweight="bold")
+        ax.set_yticks([])
+        ax.set_xlabel("Punten")
+        ax.set_title("Dashboard: overzicht per scenario",color=PRIMARY_COLOR)
+        st.pyplot(fig)
+else:
+    st.info("Klik op 'Bereken winkansen' om te starten.")
