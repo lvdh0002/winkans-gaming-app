@@ -26,43 +26,56 @@ except Exception:
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 
 # --- Font & CSS (Oswald + JDE huisstijl) ---
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
 
-html, body, .stApp,
-[data-testid="stAppViewContainer"] *,
-[data-testid="stHeader"] *,
-[data-testid="stSidebar"] *,
-div.block-container *,
-section.main *,
-section[data-testid="stSidebar"] *,
-h1, h2, h3, h4,
-strong, b,
-.stMarkdown strong,
-.stMarkdown b {
+/* Koppen in Oswald */
+h1, h2, h3, h4, .jde-title {
     font-family: 'Oswald', Arial, sans-serif !important;
     font-weight: 700 !important;
+    letter-spacing: 0.2px;
+    color: #7A1F1F; /* wijnrood */
 }
 
-html, body, .stApp { background-color: #F3E9DB; } /* beige */
-h1, h2, h3, h4 { color: #7A1F1F; } /* wijnrood */
-.stButton>button {
-  background-color: #7A1F1F; color: #fff; border-radius: 6px; font-weight:700;
+/* Sidebar en body in neutraal font (Aptos-achtig) */
+html, body, .stApp,
+.stMarkdown, .stSidebar, .stNumberInput label, .stSelectbox label {
+    font-family: 'Segoe UI', 'Aptos', Arial, sans-serif !important;
+    font-weight: 400 !important;
 }
-.stButton>button:hover { background-color: #4B2E2B; color: #fff; }
+
+/* Knoppen in Oswald Bold */
+.stButton>button {
+    font-family: 'Oswald', Arial, sans-serif !important;
+    font-weight: 700 !important;
+    background-color: #7A1F1F;
+    color: white;
+    border-radius: 6px;
+}
+.stButton>button:hover {
+    background-color: #4B2E2B;
+}
+
+/* Huisstijl kleuren */
+html, body, .stApp { background-color: #F3E9DB; }
 thead tr th { background-color: #C8A165 !important; color: #fff !important; }
 .streamlit-expanderHeader { color: #4B2E2B !important; font-weight: 700; }
 [data-testid="stSidebar"] > div:first-child {
-  background: linear-gradient(180deg, #7A1F1F 0%, #4B2E2B 100%);
-  color: #fff;
+    background: linear-gradient(180deg, #7A1F1F 0%, #4B2E2B 100%);
+    color: #fff;
 }
 [data-testid="stSidebar"] .stMarkdown p,
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] .stNumberInput label,
-[data-testid="stSidebar"] .stSelectbox label { color: #fff !important; }
+[data-testid="stSidebar"] .stSelectbox label {
+    color: #fff !important;
+    font-weight: 400 !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
 
 # --- Huisstijl kleuren ---
 PRIMARY_COLOR = "#7A1F1F"
