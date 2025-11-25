@@ -290,5 +290,5 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
         st.download_button("📄 Download printbare adviespagina (PDF)", data=pdf_bytes, file_name="advies_winkans_bpkv.pdf", mime="application/pdf")
     else:
         st.info("PDF niet beschikbaar (reportlab ontbreekt).")
-else:
-    st.info("Klik op 'Bereken winkansen' om te starten.")
+   else:
+        st.info("Klik op 'Bereken winkansen' om te starten.")
