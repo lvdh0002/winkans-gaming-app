@@ -85,17 +85,17 @@ def price_points_from_margins(my_margin,comp_margin,M):
     cheapest=min(my_margin,comp_margin)
     my_rel=max(0,my_margin-cheapest); comp_rel=max(0,comp_margin-cheapest)
     return M*(1-my_rel/100),M*(1-comp_rel/100)
-def required_drop_to_win_vs_one(my_margin,comp_margin,Qm,Qc,M):
-    threshold=comp_margin+(100.0/M)*(Qm-Qc)
-    needed=max(0,my_margin-threshold)
-    drop_int=int(math.ceil(needed)); target=my_margin-drop_int
-    return target,drop_int
-def required_drop_to_win_all(my_margin,comps,Qm,M):
-    thresholds=[c['c']+(100.0/M)*(Qm-c['Qc']) for c in comps]
-    min_thr=min(thresholds) if thresholds else my_margin
-    needed=max(0,my_margin-min_thr)
-    drop_int=int(math.ceil(needed)); target=my_margin-drop_int
-    return target,drop_int
+
+def simulate_drop_for_win(my_margin,comp_margin,jde_quality,comp_quality,M):
+    current=my_margin
+    while current>=0:
+        my_price,comp_price=price_points_from_margins(current,comp_margin,M)
+        if jde_quality+my_price>comp_quality+comp_price:
+            drop=my_margin-current
+            return int(math.ceil(drop)),int(round(current))
+        current-=0.1
+    return None,None
+
 def best_one_step_quality_gain(current_scores,jde_quality_pts,comp_total_now):
     for c in criteria:
         cur=current_scores[c]
@@ -114,7 +114,7 @@ def dashboard_figure(rows):
     if not HAS_MPL: return None
     MOS_GREEN="#6B8E23"; BROWN="#8B5E3C"; LIGHT_GREEN="#A9BA9D"; BEIGE="#C4A484"
     n=len(rows)
-    fig,ax=plt.subplots(figsize=(7,0.45*n+1.5))  # compacter
+    fig,ax=plt.subplots(figsize=(6,0.4*n+1.2))  # compacter
     y_you=np.arange(n)*2; y_comp=y_you+0.8
     for i,r in enumerate(rows):
         ax.barh(y_you[i],r["you_quality"],color=MOS_GREEN,label="Kwaliteit (Jij)" if i==0 else None)
@@ -155,14 +155,13 @@ st.header("Resultaten")
 if st.button("Bereken winkansen"):
     jde_quality_pts=compute_quality_points(verwachte_scores_eigen)
     overzicht=[]; dashboard=[]
-    for s in scenarios:
-        comp_margin=float(s["pct"]); comp_quality_pts=compute_quality_points(s["kval_scores"])
+    for comp_quality_pts=compute_quality_points(s["kval_scores"])
         my_price_now,comp_price_now=price_points_from_margins(margin_pct,comp_margin,max_price_points)
         my_total=jde_quality_pts+my_price_now; comp_total=comp_quality_pts+comp_price_now
         status="WIN" if my_total>comp_total else "LOSE" if my_total<comp_total else "DRAW"
         verschil=int(round(my_total-comp_total))
-        target_margin,drop_int=required_drop_to_win_vs_one(margin_pct,comp_margin,jde_quality_pts,comp_quality_pts,max_price_points)
-        prijsactie="Geen actie nodig" if status=="WIN" or drop_int<=0 else f"Verlaag {drop_int}%-punt (naar {int(round(target_margin))}%)"
+        drop_int,target_margin=simulate_drop_for_win(margin_pct,comp_margin,jde_quality_pts,comp_quality_pts,max_price_points)
+        prijsactie="Geen actie nodig" if status=="WIN" or drop_int is None else f"Verlaag {drop_int}%-punt (naar {target_margin}%)"
         qual_step=best_one_step_quality_gain(verwachte_scores_eigen,jde_quality_pts,comp_total)
         kwaliteitsactie=f"Verhoog {qual_step[0]} van {int(round(qual_step[1]))}→{int(round(qual_step[2]))} (+{int(round(qual_step[3]))} ptn)" if qual_step else "-"
         overzicht.append({"Scenario":s["naam"],"Status":status,"JDE totaal":int(round(my_total)),"JDE prijs":int(round(my_price_now)),"JDE kwaliteit":int(round(jde_quality_pts)),"Concurrent totaal":int(round(comp_total)),"Conc prijs":int(round(comp_price_now)),"Conc kwaliteit":int(round(comp_quality_pts)),"Verschil":verschil,"% duurder (JDE)":f"{int(round(margin_pct))}%" if margin_pct>0 else "Goedkoopste","% duurder (Conc)":f"{int(round(comp_margin))}%" if comp_margin>0 else "Goedkoopste","Prijsactie":prijsactie,"Kwaliteitsactie":kwaliteitsactie})
@@ -171,9 +170,6 @@ if st.button("Bereken winkansen"):
     def color_status(val): return "background-color:#81C784" if val=="WIN" else "background-color:#E57373" if val=="LOSE" else "background-color:#B0BEC5"
     st.subheader("Overzicht alle scenario's")
     st.dataframe(df.style.applymap(color_status,subset=["Status"]),use_container_width=True)
-    comps_list=[{"Qc":compute_quality_points(s["kval_scores"]),"c":float(s["pct"])} for s in scenarios]
-    glob_target,glob_drop=required_drop_to_win_all(margin_pct,comps_list,jde_quality_pts,max_price_points)[:2]
-    st.caption(f"Globaal prijsadvies om iedereen te verslaan: verlaag {glob_drop}%-punt (naar {int(round(glob_target))}%).")
     st.download_button("Download CSV",df.to_csv(index=False),"winkans_overzicht.csv","text/csv")
     pdf_bytes=export_pdf_onepager(df,LOGO_PATH)
     if pdf_bytes: st.download_button("📄 Download PDF (JDE-stijl, one-pager, landscape)",pdf_bytes,"advies_winkans_jde.pdf","application/pdf")
