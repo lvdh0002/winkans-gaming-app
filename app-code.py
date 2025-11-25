@@ -195,7 +195,7 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
         ('BOX', (0,0), (-1,-1), 0.5, colors.grey),
         ('GRID', (0,0), (-1,-1), 0.25, colors.grey),
         ('ALIGN', (2,1), (-1,-1), 'CENTER'),
-        ]))
+    ]))
                    flow.append(Paragraph(f"<b>{d['naam']}</b> — {d['gap_text']}", styles["Heading3"]))
             for p in d["bullets"]:
                 flow.append(Paragraph(f"• {p}", styles["Normal"]))
