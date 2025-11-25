@@ -198,7 +198,7 @@ def make_pdf(summary_dict, df_overzicht, scenario_details):
                    flow.append(Paragraph(f"<b>{d['naam']}</b> — {d['gap_text']}", styles["Heading3"]))
             for p in d["bullets"]:
                 flow.append(Paragraph(f"• {p}", styles["Normal"]))
-            flow.append(Spacer(1, 8))
+            flow.append(Spacer(1, 8)])
     doc.build(flow)
     buf.seek(0)
     return buf.getvalue()
