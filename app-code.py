@@ -1,21 +1,13 @@
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import math
 import io
 import os
 
-HAS_MPL = True
-try:
-    import matplotlib.pyplot as plt
-except:
-    HAS_MPL = False
-
-# Page config
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 
-# CSS JDE-stijl
+# CSS
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
@@ -59,7 +51,7 @@ for i in range(int(num_scen)):
         is_cheapest=st.checkbox("Is goedkoopste?",key=f"cheap{i}")
         pct=st.number_input("% duurder dan goedkoopste (conc.)",0.0,100.0,margin_pct,0.1,key=f"pct{i}") if not is_cheapest else 0.0
         kval_scores={c:float(st.selectbox(f"Score {c}",[str(x) for x in scale_values],key=f"score_{i}_{c}")) for c in criteria}
-        scenarios.append({"naam":naam,"pct":pct,"is_cheapest":is_cheapest,"kval_scores":kval_scores})
+        scenarios.append({"naam":naam,"pct":pct,"kval_scores":kval_scores})
 
 # Functions
 def score_to_points(s,maxp): return (float(s)/max_scale)*maxp
@@ -68,36 +60,25 @@ def absolute_price_points(marge,M): return M*(1-marge/100)
 
 def simulate_drop_for_win(my_margin,comp_margin,jde_quality,comp_quality,M):
     current=my_margin
-    while current>=0:
-        my_price=absolute_price_points(current,M)
-        comp_price=absolute_price_points(comp_margin,M)
+    while current>=-20:  # tot 20% goedkoper
+        # herbereken relatieve marges
+        cheapest=current if current<comp_margin else comp_margin
+        my_rel=max(0,current-cheapest)
+        comp_rel=max(0,comp_margin-cheapest)
+        my_price=M*(1-my_rel/100)
+        comp_price=M*(1-comp_rel/100)
         if jde_quality+my_price>comp_quality+comp_price:
             drop=my_margin-current
             return int(math.ceil(drop)),int(round(current))
         current-=0.1
     return None,None
 
-def dashboard_figure(rows):
-    MOS_GREEN="#6B8E23"; BROWN="#8B5E3C"; LIGHT_GREEN="#A9BA9D"; BEIGE="#C4A484"
-    n=len(rows)
-    fig,ax=plt.subplots(figsize=(5,0.3*n+1))  # compacter
-    y_you=np.arange(n)*2; y_comp=y_you+0.8
-    for i,r in enumerate(rows):
-        ax.barh(y_you[i],r["you_quality"],color=MOS_GREEN,label="Kwaliteit (Jij)" if i==0 else None)
-        ax.barh(y_you[i],r["you_price"],left=r["you_quality"],color=BROWN,label="Prijs (Jij)" if i==0 else None)
-        ax.barh(y_comp[i],r["comp_quality"],color=LIGHT_GREEN,label="Kwaliteit (Conc)" if i==0 else None)
-        ax.barh(y_comp[i],r["comp_price"],left=r["comp_quality"],color=BEIGE,label="Prijs (Conc)" if i==0 else None)
-    ax.set_yticks([]); ax.set_xlabel("Punten",color=PRIMARY_COLOR)
-    ax.set_title("Dashboard: overzicht per scenario",color=PRIMARY_COLOR,fontweight="bold")
-    ax.grid(axis="x",alpha=0.25); ax.legend(loc="upper right")
-    st.pyplot(fig)
-
 # Analyse
 st.header("Resultaten")
 if st.button("Bereken winkansen"):
     jde_quality_pts=compute_quality_points(verwachte_scores_eigen)
     jde_price=absolute_price_points(margin_pct,max_price_points)
-    overzicht=[]; dashboard=[]
+    overzicht=[]
     for idx,s in enumerate(scenarios,start=1):
         comp_margin=float(s["pct"])
         comp_quality_pts=compute_quality_points(s["kval_scores"])
@@ -106,13 +87,10 @@ if st.button("Bereken winkansen"):
         status="WIN" if my_total>comp_total else "LOSE" if my_total<comp_total else "DRAW"
         verschil=int(round(my_total-comp_total))
         drop_int,target_margin=simulate_drop_for_win(margin_pct,comp_margin,jde_quality_pts,comp_quality_pts,max_price_points)
-        prijsactie="Geen actie nodig" if status=="WIN" or drop_int is None else f"Verlaag {drop_int}%-punt (naar {target_margin}%)"
+        prijsactie="Geen actie mogelijk" if drop_int is None else f"Verlaag {drop_int}%-punt (naar {target_margin}%)"
         overzicht.append({"Scenario":f"{idx}. {s['naam']}","Status":status,"JDE prijs":int(round(jde_price)),"JDE kwaliteit":int(round(jde_quality_pts)),"JDE totaal":int(round(my_total)),"Conc prijs":int(round(comp_price)),"Conc kwaliteit":int(round(comp_quality_pts)),"Conc totaal":int(round(comp_total)),"Verschil":verschil,"Prijsactie":prijsactie})
-        dashboard.append({"naam":s["naam"],"you_quality":jde_quality_pts,"you_price":jde_price,"comp_quality":comp_quality_pts,"comp_price":comp_price})
     df=pd.DataFrame(overzicht,columns=["Scenario","Status","JDE prijs","JDE kwaliteit","JDE totaal","Conc prijs","Conc kwaliteit","Conc totaal","Verschil","Prijsactie"])
     st.dataframe(df,use_container_width=True)
     st.download_button("Download CSV",df.to_csv(index=False),"winkans_overzicht.csv","text/csv")
-    st.subheader("📊 Dashboard-grafiek")
-    dashboard_figure(dashboard)
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
