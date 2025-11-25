@@ -43,6 +43,28 @@ PRICE_COLOR   = "#1565C0"    # donkerblauw (prijs)
 LOGO_PATH = os.path.join("assets", "logo_jde.png")
 
 # App-brede CSS
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
+
+html, body, .stApp {
+    font-family: 'Oswald', Arial, sans-serif;
+}
+
+h1, h2, h3, h4 {
+    font-family: 'Oswald', Arial, sans-serif;
+    font-weight: 700;
+    color: #7A1F1F; /* wijnrood */
+}
+
+.stButton>button {
+    font-family: 'Oswald', Arial, sans-serif;
+    font-weight: 700;
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.markdown(f"""
 <style>
 html, body, .stApp {{
