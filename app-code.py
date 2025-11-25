@@ -4,7 +4,6 @@ import pandas as pd
 import math
 import io
 import os
-
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -63,9 +62,7 @@ def compute_quality_points(scores): return sum(score_to_points(scores[c],max_poi
 def absolute_price_points(marge,M): return M*(1-marge/100)
 
 def required_drop_piecewise(my_margin,comp_margin,Qm,Qc,M):
-    # Regime A: jij blijft duurder
     m_req_A = comp_margin + (100.0/M)*(Qm - Qc)
-    # Regime B: jij wordt goedkoopste
     m_req_B = comp_margin - (100.0/M)*(Qc - Qm)
     m_req = m_req_A if m_req_A >= comp_margin else m_req_B
     drop = max(0,my_margin - m_req)
@@ -99,7 +96,7 @@ if st.button("Bereken winkansen"):
         if status=="WIN": win_no_action+=1
         elif drop_int>0: win_price+=1
 
-        # Kwaliteitsactie: alleen tonen als kwaliteit alleen tot WIN leidt
+        # Kwaliteitsactie alleen als kwaliteit alleen tot WIN leidt
         qual_action="-"
         for c in criteria:
             cur=float(verwachte_scores_eigen[c])
@@ -161,7 +158,7 @@ if st.button("Bereken winkansen"):
         for step in quality_steps_info:
             flow.append(Paragraph(f"- {step[0]}: {step[1]}→{step[2]} (+{step[3]} ptn)",styles["Normal"]))
     flow.append(Spacer(1,12))
-    # Tabel
+    # Tabel met herfstige statuskleuren
     table_data=[list(df.columns)]+df.values.tolist()
     t=Table(table_data,colWidths=[80,60,60,70,70,70,70,80,80,130,160])
     t.setStyle(TableStyle([
@@ -171,10 +168,24 @@ if st.button("Bereken winkansen"):
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
         ('FONTSIZE',(0,0),(-1,-1),9),
-        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.white,colors.HexColor("#F7F2EA")])
+        ('ROWBACKGROUNDS',(0,1),(-1,-1),[colors.HexColor("#FDF6EC"),colors.HexColor("#F7F2EA")])
     ]))
     flow.append(t)
     flow.append(Spacer(1,12))
     flow.append(Paragraph("BPKV = Beste Prijs-Kwaliteit Verhouding. Berekening op basis van inschatting van scores en marges.",styles["Normal"]))
     doc.build(flow)
     pdf_buf.seek(0)
+    st.download_button("📄 Download PDF (JDE-stijl, one-pager)",pdf_buf,"advies_winkans_jde.pdf","application**: herfstige tinten (beige/goud, geen felle kleuren).  
+✅ **Adviesroute**: als tekst onder tabel in PDF.  
+✅ **Samenvatting + uitleg**: boven en onder in PDF.  
+✅ **Kwaliteitsactie**: alleen als kwaliteit alleen tot WIN leidt.  
+✅ **Prijsactie bij DRAW**: altijd tonen.
+
+---
+
+💡 **Extra intuïtieve verbeteringen**:
+- Voeg **kolom “Adviesroute”** in PDF (tekst: “Prijs”, “Kwaliteit”, “Geen actie”).
+- Gebruik **lichte achtergrond per status** (WIN = zacht mosgroen, LOSE = kastanjebruin, DRAW = goudbeige).
+
+Wil je dat ik deze **statuskleur per rij** en **Adviesroute-kolom** ook toevoeg in de PDF?  
+(→ Dan is het echt een sales-ready one-pager in JDE-stijl.)
