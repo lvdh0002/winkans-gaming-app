@@ -24,7 +24,6 @@ except Exception:
 
 # --- Page Config ---
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
-)
 
 # --- JDE Professional Huisstijl (beige/lichtbruin + wijnrood) ---
 PRIMARY_COLOR = "#7A1F1F"    # wijnrood (donkerrood)
