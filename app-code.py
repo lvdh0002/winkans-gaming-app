@@ -1,5 +1,7 @@
+
 import streamlit as st
 import pandas as pd
+import numpy as np
 import math
 import io
 import os
@@ -28,15 +30,15 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
 h1,h2,h3,h4 {font-family:'Oswald',sans-serif!important;font-weight:700;color:#7A1F1F;}
-html,body,.stApp {background-color:#F3E9DB;font-family:'Segoe UI','Aptos',sans-serif!important;}
+html,body,.stApp {background-color:#F3E9DB;font-family:'Segoe UI','Aptos',sans-serif!important;color:#000;}
 .stButton>button {font-family:'Oswald',sans-serif!important;font-weight:700;background:#7A1F1F;color:#fff;border-radius:6px;}
 .stButton>button:hover {background:#4B2E2B;}
 thead tr th {background:#C8A165!important;color:#fff!important;}
 [data-testid="stSidebar"]>div:first-child {background:linear-gradient(180deg,#7A1F1F 0%,#4B2E2B 100%);color:#fff;}
+[data-testid="stSidebar"] label {color:#fff!important;}
 </style>
 """, unsafe_allow_html=True)
 
-# Huisstijl kleuren
 PRIMARY_COLOR="#7A1F1F"; ACCENT_GOLD="#C8A165"
 LOGO_PATH=os.path.join("assets","logo_jde.png")
 
@@ -112,7 +114,7 @@ def dashboard_figure(rows):
     if not HAS_MPL: return None
     MOS_GREEN="#6B8E23"; BROWN="#8B5E3C"; LIGHT_GREEN="#A9BA9D"; BEIGE="#C4A484"
     n=len(rows)
-    fig,ax=plt.subplots(figsize=(8,0.5*n+2))  # kleiner
+    fig,ax=plt.subplots(figsize=(7,0.45*n+1.5))  # compacter
     y_you=np.arange(n)*2; y_comp=y_you+0.8
     for i,r in enumerate(rows):
         ax.barh(y_you[i],r["you_quality"],color=MOS_GREEN,label="Kwaliteit (Jij)" if i==0 else None)
@@ -179,4 +181,3 @@ if st.button("Bereken winkansen"):
     dashboard_figure(dashboard)
 else:
     st.info("Klik op 'Bereken winkansen' om te starten.")
-
