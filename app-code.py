@@ -155,7 +155,8 @@ st.header("Resultaten")
 if st.button("Bereken winkansen"):
     jde_quality_pts=compute_quality_points(verwachte_scores_eigen)
     overzicht=[]; dashboard=[]
-    for comp_quality_pts=compute_quality_points(s["kval_scores"])
+    for s in scenarios:
+        comp_quality_pts = compute_quality_points(s["kval_scores"])
         my_price_now,comp_price_now=price_points_from_margins(margin_pct,comp_margin,max_price_points)
         my_total=jde_quality_pts+my_price_now; comp_total=comp_quality_pts+comp_price_now
         status="WIN" if my_total>comp_total else "LOSE" if my_total<comp_total else "DRAW"
