@@ -60,6 +60,7 @@ for i in range(int(num_scen)):
         kval_scores={c:float(st.selectbox(f"Score {c}",[str(x) for x in scale_values],key=f"score_{i}_{c}")) for c in criteria}
         scenarios.append({"naam":naam,"marge":pct,"kval_scores":kval_scores})
 
+# --- Helpers ---
 def score_to_points(s,maxp): return (float(s)/max_scale)*maxp
 def compute_quality_points(scores): return sum(score_to_points(scores[c],max_points_criteria[c]) for c in criteria)
 def absolute_price_points(marge,M): return M*(1-marge/100)
@@ -75,18 +76,15 @@ def points_per_step_for_criterion(c):
     diffs = [scale_values[i+1]-scale_values[i] for i in range(len(scale_values)-1)]
     step_size = min([d for d in diffs if d > 0]) if diffs else 1
     return (max_points_criteria[c] / max_scale) * step_size
-
 def advice_route_text(price_action, qual_action):
     p_needed = ("Verlaag" in price_action) and ("Geen actie nodig" not in price_action)
     q_needed = (qual_action not in ["-", "Ontoereikend", ""]) and ("Verhoog" in qual_action)
-    if p_needed and q_needed:
-        return "Adviesroute: prijs + kwaliteit"
-    if p_needed and not q_needed:
-        return "Adviesroute: prijs"
-    if (not p_needed) and q_needed:
-        return "Adviesroute: kwaliteit"
+    if p_needed and q_needed: return "Adviesroute: prijs + kwaliteit"
+    if p_needed and not q_needed: return "Adviesroute: prijs"
+    if (not p_needed) and q_needed: return "Adviesroute: kwaliteit"
     return "Adviesroute: geen actie"
 
+# --- Analyse ---
 st.header("Resultaten")
 if st.button("Bereken winkansen"):
     jde_quality_pts=compute_quality_points(verwachte_scores_eigen)
@@ -142,127 +140,72 @@ if st.button("Bereken winkansen"):
             "Verschil": verschil,
             "JDE totaal": int(round(jde_total)),
             "Conc totaal": int(round(comp_total)),
-            "JDE prijs": int(round(jde_price_pts)),
-            "Conc prijs": int(round(comp_price_pts)),
-            "JDE kwaliteit": int(round(jde_quality_pts)),
-            "Conc kwaliteit": int(round(comp_quality_pts)),
             "Prijsactie": prijsactie,
             "Kwaliteitsactie": qual_action
         })
 
-    df = pd.DataFrame(rows, columns=[
-        "Scenario","Status","Verschil","JDE totaal","Conc totaal",
-        "JDE prijs","Conc prijs","JDE kwaliteit","Conc kwaliteit",
-        "Prijsactie","Kwaliteitsactie"
-    ])
-    st.dataframe(df, use_container_width=True)
+    df=pd.DataFrame(rows)
+    st.dataframe(df,use_container_width=True)
 
-    # ---------- Samenvatting ----------
-    glob_adv_drop = max(global_drops) if global_drops else 0
-    glob_adv_target = int(round(margin_pct - glob_adv_drop)) if glob_adv_drop>0 else int(round(margin_pct))
-    st.subheader("📊 Samenvatting")
-    st.markdown(f"""
-- **Zonder actie win je:** **{win_no_action}** scenario's  
-- **Winnen via prijs:** **{win_price}** scenario's  
-- **Winnen via kwaliteit (zonder prijsverlaging):** **{win_quality}** scenario's  
-- **Globaal prijsadvies (strengste concurrent):** verlaag **{glob_adv_drop}%** (naar **{glob_adv_target}%**)
-""")
-    st.markdown("**Punten per kwaliteitscriterium per stap:**")
-    for c in criteria:
-        pts_step = points_per_step_for_criterion(c)
-        st.markdown(f"- {c}: {int(round(pts_step))} ptn per stap")
+    # ---------- PDF Export ----------
+    pdf_buf=io.BytesIO()
+    doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
+    styles=getSampleStyleSheet()
+    styles.add(ParagraphStyle(name="JDETitle",fontName="Helvetica-Bold",fontSize=18,textColor=colors.HexColor(PRIMARY_COLOR)))
+    styles.add(ParagraphStyle(name="JDENormal",fontName="Helvetica",fontSize=10,textColor=colors.black))
+    styles.add(ParagraphStyle(name="JDEItalic",fontName="Helvetica-Oblique",fontSize=8,textColor=colors.HexColor("#333")))
 
-    # ---------- PDF Export (compacte tabel, JDE-stijl one-pager) ----------
-    pdf_buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        pdf_buf, pagesize=landscape(A4),
-        leftMargin=24, rightMargin=24, topMargin=24, bottomMargin=24
-    )
-    styles = getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="JDETitle", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=18, textColor=colors.HexColor(PRIMARY_COLOR)))
-    styles.add(ParagraphStyle(name="JDENormal", parent=styles["Normal"], fontName="Helvetica", fontSize=10, textColor=colors.black))
-    styles.add(ParagraphStyle(name="JDEItalic", parent=styles["Normal"], fontName="Helvetica-Oblique", fontSize=8, textColor=colors.HexColor("#333")))
+    flow=[]
+    if os.path.exists(LOGO_PATH): flow.append(Image(LOGO_PATH,width=100,height=40))  # behoud aspect ratio
+    flow.append(Spacer(1,6))
+    flow.append(Paragraph("Advies: Winkans & Acties (BPKV)",styles["JDETitle"]))
+    flow.append(Spacer(1,10))
 
-    flow = []
-    if os.path.exists(LOGO_PATH): flow.append(Image(LOGO_PATH, width=120, height=58))
-    flow.append(Spacer(1, 6))
-    flow.append(Paragraph("Advies: Winkans & Acties (BPKV)", styles["JDETitle"]))
-    flow.append(Spacer(1, 10))
-
-    # Overzicht JDE en concurrenten bovenaan
-    jde_scores = [f"{c}: {int(verwachte_scores_eigen[c])}" for c in criteria]
-    flow.append(Paragraph(f"<b>JDE uitgangspunt:</b> prijs {'goedkoopste' if margin_pct==0 else f'{margin_pct:.1f}% duurder'}, " +
-                          ", ".join(jde_scores), styles["JDENormal"]))
-    for idx, s in enumerate(scenarios, start=1):
-        comp_scores = [f"{c}: {int(s['kval_scores'][c])}" for c in criteria]
-        flow.append(Paragraph(f"<b>Scenario {idx} ({s['naam']}):</b> prijs {'goedkoopste' if s['marge']==0 else f'{s['marge']:.1f}% duurder'}, " +
-                              ", ".join(comp_scores), styles["JDENormal"]))
-    flow.append(Spacer(1, 10))
-
-    # Samenvatting-blok
-    flow.append(Paragraph(f"• Zonder actie win je {win_no_action} scenario's.", styles["JDENormal"]))
-    flow.append(Paragraph(f"• In {win_price} scenario's kun je winnen door prijs te verlagen.", styles["JDENormal"]))
-    flow.append(Paragraph(f"• In {win_quality} scenario's kun je winnen door kwaliteit te verbeteren (zonder prijsverlaging).", styles["JDENormal"]))
-    flow.append(Paragraph(f"• Globaal prijsadvies: verlaag {glob_adv_drop}% (naar {glob_adv_target}%).", styles["JDENormal"]))
-    flow.append(Spacer(1, 8))
-    flow.append(Paragraph("Punten per kwaliteitscriterium per stap:", styles["JDENormal"]))
-    for c in criteria:
-        pts_step = points_per_step_for_criterion(c)
-        flow.append(Paragraph(f"- {c}: {int(round(pts_step))} ptn per stap", styles["JDENormal"]))
-    flow.append(Spacer(1, 10))
+    # Overzicht JDE en scenario's
+    jde_scores=", ".join([f"{c}: {int(verwachte_scores_eigen[c])}" for c in criteria])
+    flow.append(Paragraph(f"<b>JDE uitgangspunt:</b> prijs {'goedkoopste' if margin_pct==0 else f'{margin_pct:.1f}% duurder'}, {jde_scores}",styles["JDENormal"]))
+    for idx,s in enumerate(scenarios,start=1):
+        comp_scores=", ".join([f"{c}: {int(s['kval_scores'][c])}" for c in criteria])
+        flow.append(Paragraph(f"<b>Scenario {idx} ({s['naam']}):</b> prijs {'goedkoopste' if s['marge']==0 else f'{s['marge']:.1f}% duurder'}, {comp_scores}",styles["JDENormal"]))
+    flow.append(Spacer(1,10))
 
     # Compacte tabel
-    pdf_cols = ["Scenario","Status","Verschil","JDE totaal","Conc totaal","Prijsactie","Kwaliteitsactie"]
-    table_data = [pdf_cols] + df[pdf_cols].values.tolist()
-    col_widths = [80,55,55,70,70,120,120]
-    t = Table(table_data, colWidths=col_widths, repeatRows=1)
-    base_style = TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor(ACCENT_GOLD)),
-        ('TEXTCOLOR',  (0,0), (-1,0), colors.white),
-        ('GRID',       (0,0), (-1,-1), 0.25, colors.grey),
-        ('ALIGN',      (0,0), (-1,-1), 'CENTER'),
-        ('FONTNAME',   (0,0), (-1,0), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0,0), (-1,-1), 9),
-    ])
-    t.setStyle(base_style)
-    # Herfstige statuskleur per rij
-    for i in range(1, len(table_data)):
-        status_val = str(table_data[i][1]).upper()
-        row_bg = DRAW_ROW_BG
-        if status_val == "WIN":
-            row_bg = WIN_ROW_BG
-        elif status_val == "LOSE":
-            row_bg = LOSE_ROW_BG
-        t.setStyle(TableStyle([('BACKGROUND', (0,i), (-1,i), row_bg)]))
+    pdf_cols=["Scenario","Status","Verschil","JDE totaal","Conc totaal","Prijsactie","Kwaliteitsactie"]
+    table_data=[pdf_cols]+df[pdf_cols].values.tolist()
+    col_widths=[80,60,60,70,70,140,140]
+    t=Table(table_data,colWidths=col_widths,repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+    ]))
+    for i in range(1,len(table_data)):
+        status=str(table_data[i][1]).upper()
+        bg=DRAW_ROW_BG
+        if status=="WIN": bg=WIN_ROW_BG
+        elif status=="LOSE": bg=LOSE_ROW_BG
+        t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
     flow.append(t)
-    flow.append(Spacer(1, 10))
+    flow.append(Spacer(1,10))
 
-    # Adviesroute per scenario
-    flow.append(Paragraph("Adviesroute per scenario:", styles["JDENormal"]))
+    # Adviesroute
+    flow.append(Paragraph("Adviesroute per scenario:",styles["JDENormal"]))
     for i in range(len(df)):
-        price_action = str(df.iloc[i]["Prijsactie"])
-        qual_action  = str(df.iloc[i]["Kwaliteitsactie"])
-        route_txt    = advice_route_text(price_action, qual_action)
-        flow.append(Paragraph(f"- {df.iloc[i]['Scenario']}: {route_txt}", styles["JDENormal"]))
-    flow.append(Spacer(1, 10))
+        route=advice_route_text(df.iloc[i]["Prijsactie"],df.iloc[i]["Kwaliteitsactie"])
+        flow.append(Paragraph(f"- {df.iloc[i]['Scenario']}: {route}",styles["JDENormal"]))
+    flow.append(Spacer(1,10))
 
-    # Uitleg BPKV (schuingedrukt)
-    flow.append(Paragraph(
-        "BPKV (Beste Prijs-Kwaliteit Verhouding) beoordeelt inschrijvingen op prijs en kwaliteit. "
-        "Prijspunten zijn steady en kwaliteitspunten volgen de gekozen schaal. "
-        "Adviezen zijn scenario-specifiek en objectief berekend.",
-        styles["JDEItalic"]
-    ))
+    # Disclaimer schuingedrukt
+    flow.append(Paragraph("BPKV (Beste Prijs-Kwaliteit Verhouding) beoordeelt inschrijvingen op prijs en kwaliteit. "
+                          "Prijspunten zijn steady en kwaliteitspunten volgen de gekozen schaal. "
+                          "Adviezen zijn scenario-specifiek en objectief berekend.",styles["JDEItalic"]))
 
-    def draw_page_bg(canvas, doc):
-        canvas.saveState()
+    def draw_bg(canvas,doc):
         canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
-        canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1, stroke=0)
-        canvas.restoreState()
+        canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
 
-    doc.build(flow, onFirstPage=draw_page_bg, onLaterPages=draw_page_bg)
+    doc.build(flow,onFirstPage=draw_bg)
     pdf_buf.seek(0)
-    st.download_button("📄 Download PDF (JDE-stijl, one-pager)", pdf_buf, "advies_winkans_jde.pdf", mime="application/pdf")
-
-else:
-    st.info("Klik op 'Bereken winkansen' om te starten.")
