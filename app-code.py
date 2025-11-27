@@ -55,11 +55,56 @@ if os.path.exists(LOGO_PATH):
         iw, ih = img_reader.getSize()
         logo_width = 120
         logo_height = logo_width * (ih / iw)
-        st.image(LOGO_PATH, width=logo_width)
+        logo_img = Image(LOGO_PATH, width=logo_width, height=logo_height)
     except Exception:
-        st.image(LOGO_PATH, width=100)
+        logo_img = Paragraph("", styles["JDENormal"])
 else:
-    logo = Paragraph("", styles["JDENormal"])
+    logo_img = Paragraph("", styles["JDENormal"])
+
+# Titel met automatische tekstwrap
+title_par = Paragraph(
+    "Advies: Winkans & Acties — BPKV",
+    ParagraphStyle(
+        "title_wrap",
+        parent=styles["JDETitle"],
+        wordWrap='CJK',  # wrap lange teksten
+        fontName="Helvetica-Bold",
+        fontSize=20,
+        textColor=colors.white,
+        leading=24,
+    )
+)
+
+# Optionele tagline (kort) naast titel
+tagline_par = Paragraph(
+    "<b>Sustainability • Quality • People</b>",
+    ParagraphStyle(
+        "tagline",
+        parent=styles["JDENormal"],
+        fontSize=10,
+        textColor=colors.white,
+        wordWrap='CJK',
+    )
+)
+
+# Header tabel met 3 kolommen: logo | titel | tagline
+header_table = Table(
+    [[logo_img, title_par, tagline_par]],
+    colWidths=[logo_width + 8, 320, 200],  # pas breedtes aan naar behoefte
+    hAlign='LEFT'
+)
+
+header_table.setStyle(TableStyle([
+    ('BACKGROUND', (0,0), (-1,0), colors.HexColor(PRIMARY_COLOR)),  # JDE-rood
+    ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
+    ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+    ('LEFTPADDING',(0,0),(2,0),10),
+    ('RIGHTPADDING',(0,0),(2,0),10),
+    ('TOPPADDING',(0,0),(2,0),8),
+    ('BOTTOMPADDING',(0,0),(2,0),8),
+]))
+flow.append(header_table)
+flow.append(Spacer(1, 12))
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
