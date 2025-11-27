@@ -11,6 +11,7 @@ from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.utils import ImageReader
 
+
 # -------------------------
 # Session state: prijs/kwaliteit sync
 # -------------------------
@@ -216,9 +217,12 @@ def advice_route_text(price_action, qual_action):
 
 ### PART 6: CALCULATION, RESULTS AND PDF
 
-# -------------------------
-# Run analysis & UI output
-# -------------------------
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+
+# Register custom fonts
+pdfmetrics.registerFont(TTFont("OswaldBold", "assets/fonts/Oswald-Bold.ttf"))
+pdfmetrics.registerFont(TTFont("Aptos", "assets/fonts/Aptos-Regular.ttf"))
 
 st.header("Resultaten")
 
@@ -228,167 +232,151 @@ if st.button("Bereken winkansen"):
     jde_p=absolute_price_points(margin_pct,max_price_points)
     jde_total=jde_q_total+jde_p
 
-rows=[]
-for idx,s in enumerate(scenarios,start=1):
-    comp_q_total,comp_breakdown=compute_quality_points_and_breakdown(s["kval_scores"])
-    comp_p=absolute_price_points(s["marge"],max_price_points)
-    comp_total=comp_q_total+comp_p
+    rows=[]
+    for idx,s in enumerate(scenarios,start=1):
+        comp_q_total,comp_breakdown=compute_quality_points_and_breakdown(s["kval_scores"])
+        comp_p=absolute_price_points(s["marge"],max_price_points)
+        comp_total=comp_q_total+comp_p
 
-    status, prijsactie, kwalactie, drop_int=determine_status_and_actions(jde_total,jde_q_total,jde_p,comp_total,comp_q_total,comp_p,margin_pct,s["marge"])
-    verschil=int(round(jde_total-comp_total))
+        status, prijsactie, kwalactie, drop_int=determine_status_and_actions(jde_total,jde_q_total,jde_p,comp_total,comp_q_total,comp_p,margin_pct,s["marge"])
+        verschil=int(round(jde_total-comp_total))
 
-    row={"Scenario":f"{idx}. {s['naam']}",
-         "Status":status,
-         "Verschil":verschil,
-         "JDE totaal":round(jde_total,2),
-         "JDE prijs pts":round(jde_p,2),
-         "JDE kwaliteit pts (totaal)":round(jde_q_total,2),
-         "Conc totaal":round(comp_total,2),
-         "Conc prijs pts":round(comp_p,2),
-         "Conc kwaliteit pts (totaal)":round(comp_q_total,2),
-         "Prijsactie":prijsactie,
-         "Kwaliteitsactie":kwalactie}
+        row={"Scenario":f"{idx}. {s['naam']}",
+             "Status":status,
+             "Verschil":verschil,
+             "JDE totaal":round(jde_total,2),
+             "JDE prijs pts":round(jde_p,2),
+             "JDE kwaliteit pts (totaal)":round(jde_q_total,2),
+             "Conc totaal":round(comp_total,2),
+             "Conc prijs pts":round(comp_p,2),
+             "Conc kwaliteit pts (totaal)":round(comp_q_total,2),
+             "Prijsactie":prijsactie,
+             "Kwaliteitsactie":kwalactie}
 
-    for c in criteria:
-        row[f"JDE {c} raw_pts"]=jde_breakdown[c]["raw_points"]
-        row[f"JDE {c} contrib"]=jde_breakdown[c]["contribution"]
-        row[f"Conc {c} raw_pts"]=comp_breakdown[c]["raw_points"]
-        row[f"Conc {c} contrib"]=comp_breakdown[c]["contribution"]
+        for c in criteria:
+            row[f"JDE {c} raw_pts"]=jde_breakdown[c]["raw_points"]
+            row[f"JDE {c} contrib"]=jde_breakdown[c]["contribution"]
+            row[f"Conc {c} raw_pts"]=comp_breakdown[c]["raw_points"]
+            row[f"Conc {c} contrib"]=comp_breakdown[c]["contribution"]
 
-    rows.append(row)
+        rows.append(row)
 
-df=pd.DataFrame(rows)
-st.subheader("Volledige resultaten (per criterium breakdown)")
-st.dataframe(df,use_container_width=True)
+    df=pd.DataFrame(rows)
+    st.subheader("Volledige resultaten (per criterium breakdown)")
+    st.dataframe(df,use_container_width=True)
 
-csv_bytes=df.to_csv(index=False).encode("utf-8")
-st.download_button("Download volledige resultaten (CSV)", data=csv_bytes, file_name="winkans_volledig.csv", mime="text/csv")
+    csv_bytes=df.to_csv(index=False).encode("utf-8")
+    st.download_button("Download volledige resultaten (CSV)", data=csv_bytes, file_name="winkans_volledig.csv", mime="text/csv")
 
-# -------------------------
-# Compact PDF
-# -------------------------
-import reportlab.rl_config
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from PIL import Image as PILImage, ImageOps
+    # -------------------------
+    # Compact PDF
+    # -------------------------
+    pdf_buf=io.BytesIO()
+    doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
+    styles=getSampleStyleSheet()
+    
+    # Custom styles
+    styles.add(ParagraphStyle(name="JDETitle", fontName="OswaldBold", fontSize=20, leading=24, textColor=colors.HexColor(PRIMARY_COLOR)))
+    styles.add(ParagraphStyle(name="JDESub", fontName="OswaldBold", fontSize=12, leading=14, textColor=colors.HexColor("#333")))
+    styles.add(ParagraphStyle(name="JDENormal", fontName="Aptos", fontSize=10, leading=13, textColor=colors.black))
+    styles.add(ParagraphStyle(name="JDEItalic", fontName="Aptos", fontSize=9, leading=11, textColor=colors.HexColor("#444"), fontStyle="italic"))
 
-# Register DejaVu Sans
-font_path = os.path.join("assets","DejaVuSans.ttf")  # plaats TTF in assets folder
-pdfmetrics.registerFont(TTFont("DejaVuSans", font_path))
+    flow=[]
 
-pdf_buf=io.BytesIO()
-doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
-styles=getSampleStyleSheet()
-styles.add(ParagraphStyle(name="JDETitle", fontName="DejaVuSans", fontSize=20, leading=24, textColor=colors.HexColor(PRIMARY_COLOR)))
-styles.add(ParagraphStyle(name="JDESub", fontName="DejaVuSans", fontSize=12, leading=14, textColor=colors.HexColor("#333")))
-styles.add(ParagraphStyle(name="JDENormal", fontName="DejaVuSans", fontSize=10, leading=13, textColor=colors.black))
-styles.add(ParagraphStyle(name="JDEItalic", fontName="DejaVuSans", fontSize=9, leading=11, textColor=colors.HexColor("#444")))
-flow=[]
-
-# Header table met creme logo
-if os.path.exists(LOGO_PATH):
-    try:
-        pil_logo=PILImage.open(LOGO_PATH).convert("RGBA")
-        # Tint naar creme (#F5F5DC)
-        r,g,b=245,245,220
-        data=pil_logo.getdata()
-        new_data=[]
-        for item in data:
-            new_data.append((r,g,b,item[3]))  # behoud alpha
-        pil_logo.putdata(new_data)
-        # Opslaan in buffer
-        logo_buf=io.BytesIO()
-        pil_logo.save(logo_buf,format="PNG")
-        logo_buf.seek(0)
-        logo_width=120
-        iw,ih=pil_logo.size
-        logo_height=logo_width*(ih/iw)
-        logo=Image(logo_buf,width=logo_width,height=logo_height)
-    except:
+    # Header table met creme logo
+    if os.path.exists(LOGO_PATH):
+        try:
+            img_reader=ImageReader(LOGO_PATH)
+            iw,ih=img_reader.getSize()
+            logo_width=120
+            logo_height=logo_width*(ih/iw)
+            logo=Image(LOGO_PATH,width=logo_width,height=logo_height)
+        except:
+            logo=Image(LOGO_PATH,width=100,height=30)
+    else:
         logo=Paragraph("", styles["JDENormal"])
-else:
-    logo=Paragraph("", styles["JDENormal"])
+    header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
+    header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(PRIMARY_COLOR)),
+                                      ('VALIGN',(0,0),(-1,0),'MIDDLE'),
+                                      ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                                      ('LEFTPADDING',(0,0),(1,0),10),
+                                      ('RIGHTPADDING',(0,0),(1,0),10),
+                                      ('TOPPADDING',(0,0),(1,0),8),
+                                      ('BOTTOMPADDING',(0,0),(1,0),8)]))
+    flow.append(header_table)
+    flow.append(Spacer(1,12))
 
-header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
-header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(PRIMARY_COLOR)),
-                                  ('VALIGN',(0,0),(-1,0),'MIDDLE'),
+    # JDE uitgangssituatie
+    flow.append(Paragraph("JDE uitgangssituatie", styles["JDESub"]))
+    jde_scores_text=", ".join([f"{c}: {int(verwachte_scores_eigen.get(c,0))}" for c in criteria])
+    flow.append(Paragraph(f"Prijspositie: {margin_pct:.1f}% duurder dan goedkoopste. Score-schaal: {scale_label}. Kwaliteitsscore(s): {jde_scores_text}.", styles["JDENormal"]))
+    flow.append(Spacer(1,8))
+
+    # Per-criterium table
+    crit_table_data=[["Criterium","Weging (%)","Max punten","JDE score","JDE raw pts","JDE contrib (van kwaliteit)"]]
+    for c in criteria:
+        wt=criterion_weights.get(c,0.0)
+        mp=criterion_maxpoints.get(c,0.0)
+        jde_score=verwachte_scores_eigen.get(c,0.0)
+        jde_raw=jde_breakdown[c]["raw_points"]
+        jde_contrib=jde_breakdown[c]["contribution"]
+        crit_table_data.append([Paragraph(str(c),styles["JDENormal"]),
+                               Paragraph(f"{wt:.1f}",styles["JDENormal"]),
+                               Paragraph(f"{mp:.1f}",styles["JDENormal"]),
+                               Paragraph(f"{int(jde_score)}",styles["JDENormal"]),
+                               Paragraph(f"{jde_raw}",styles["JDENormal"]),
+                               Paragraph(f"{jde_contrib}",styles["JDENormal"])])
+    crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
+    crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
                                   ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                                  ('LEFTPADDING',(0,0),(1,0),10),
-                                  ('RIGHTPADDING',(0,0),(1,0),10),
-                                  ('TOPPADDING',(0,0),(1,0),8),
-                                  ('BOTTOMPADDING',(0,0),(1,0),8)]))
-flow.append(header_table)
-flow.append(Spacer(1,12))
+                                  ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+                                  ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
+                                  ('FONTSIZE',(0,0),(-1,-1),9),
+                                  ('ALIGN',(1,1),(-1,-1),'CENTER'),
+                                  ('VALIGN',(0,0),(-1,-1),'TOP')]))
+    flow.append(crit_tbl)
+    flow.append(Spacer(1,10))
 
-# JDE uitgangssituatie
-flow.append(Paragraph("JDE uitgangssituatie", styles["JDESub"]))
-jde_scores_text=", ".join([f"{c}: {int(verwachte_scores_eigen.get(c,0))}" for c in criteria])
-flow.append(Paragraph(f"Prijspositie: {margin_pct:.1f}% duurder dan goedkoopste. Score-schaal: {scale_label}. Kwaliteitsscore(s): {jde_scores_text}.", styles["JDENormal"]))
-flow.append(Spacer(1,8))
+    # Scenario overzicht table
+    pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
+    table_data=[pdf_cols]+[[Paragraph(str(r[col]),styles["JDENormal"]) for col in pdf_cols] for r in rows]
+    col_widths=[170,70,60,150,150]
+    t=Table(table_data, colWidths=col_widths)
+    t.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+        ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+    ]))
+    for i in range(1,len(table_data)):
+        stt=str(rows[i-1]["Status"]).upper()
+        bg=colors.HexColor("#EDE1C9")
+        if stt=="WIN": bg=colors.HexColor("#E6EBD8")
+        elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")
+        t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
+    flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
+    flow.append(t)
+    flow.append(Spacer(1,10))
 
-# Per-criterium table
-crit_table_data=[["Criterium","Weging (%)","Max punten","JDE score","JDE raw pts","JDE contrib (van kwaliteit)"]]
-for c in criteria:
-    wt=criterion_weights.get(c,0.0)
-    mp=criterion_maxpoints.get(c,0.0)
-    jde_score=verwachte_scores_eigen.get(c,0.0)
-    jde_raw=jde_breakdown[c]["raw_points"]
-    jde_contrib=jde_breakdown[c]["contribution"]
-    crit_table_data.append([Paragraph(str(c),styles["JDENormal"]),
-                           Paragraph(f"{wt:.1f}",styles["JDENormal"]),
-                           Paragraph(f"{mp:.1f}",styles["JDENormal"]),
-                           Paragraph(f"{int(jde_score)}",styles["JDENormal"]),
-                           Paragraph(f"{jde_raw}",styles["JDENormal"]),
-                           Paragraph(f"{jde_contrib}",styles["JDENormal"])])
+    # Advice routes & footnote
+    flow.append(Paragraph("Adviesroutes", styles["JDESub"]))
+    for r in rows:
+        route=advice_route_text(r["Prijsactie"],r["Kwaliteitsactie"])
+        flow.append(Paragraph(f"- {r['Scenario']}: {route} — {r['Prijsactie']}; {r['Kwaliteitsactie']}", styles["JDENormal"]))
+    flow.append(Spacer(1,8))
+    flow.append(Paragraph("Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.", styles["JDEItalic"]))
 
-crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
-crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
-                              ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                              ('GRID',(0,0),(-1,-1),0.25,colors.grey),
-                              ('FONTNAME',(0,0),(-1,0),'DejaVuSans'),
-                              ('FONTSIZE',(0,0),(-1,-1),9),
-                              ('ALIGN',(1,1),(-1,-1),'CENTER'),
-                              ('VALIGN',(0,0),(-1,-1),'TOP')]))
-flow.append(crit_tbl)
-flow.append(Spacer(1,10))
+    # Achtergrond kleur
+    def draw_bg(canvas,doc):
+        canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
+        canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
 
-# Scenario overzicht table
-pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
-table_data=[pdf_cols]+[[Paragraph(str(r[col]),styles["JDENormal"]) for col in pdf_cols] for r in rows]
-col_widths=[170,70,60,150,150]
-t=Table(table_data,colWidths=col_widths)
-t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
-                       ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                       ('GRID',(0,0),(-1,-1),0.25,colors.grey),
-                       ('FONTNAME',(0,0),(-1,0),'DejaVuSans'),
-                       ('FONTSIZE',(0,0),(-1,-1),9),
-                       ('ALIGN',(0,0),(-1,-1),'CENTER'),
-                       ('VALIGN',(0,0),(-1,-1),'TOP')]))
-for i in range(1,len(table_data)):
-    stt=str(rows[i-1]["Status"]).upper()
-    bg=colors.HexColor("#EDE1C9")
-    if stt=="WIN": bg=colors.HexColor("#E6EBD8")
-    elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")
-    t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
-flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
-flow.append(t)
-flow.append(Spacer(1,10))
-
-# Advice routes & footnote
-flow.append(Paragraph("Adviesroutes", styles["JDESub"]))
-for r in rows:
-    route=advice_route_text(r["Prijsactie"],r["Kwaliteitsactie"])
-    flow.append(Paragraph(f"- {r['Scenario']}: {route} — {r['Prijsactie']}; {r['Kwaliteitsactie']}", styles["JDENormal"]))
-flow.append(Spacer(1,8))
-flow.append(Paragraph("Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.", styles["JDEItalic"]))
-
-def draw_bg(canvas,doc):
-    canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
-    canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
-doc.build(flow,onFirstPage=draw_bg)
-pdf_buf.seek(0)
-st.download_button("📄 Download compacte JDE one-pager (PDF)", data=pdf_buf.getvalue(), file_name="winkans_onepager.pdf", mime="application/pdf")
-st.success("Analyse voltooid — download de compacte one-pager of exporteer de volledige data (CSV).")
-
+    doc.build(flow,onFirstPage=draw_bg)
+    pdf_buf.seek(0)
+    st.download_button("📄 Download compacte JDE one-pager (PDF)", data=pdf_buf.getvalue(), file_name="winkans_onepager.pdf", mime="application/pdf")
+    st.success("Analyse voltooid — download de compacte one-pager of exporteer de volledige data (CSV).")
 else:
-st.info("Klik op 'Bereken winkansen' om de analyse uit te voeren en de PDF te genereren.")
+    st.info("Klik op 'Bereken winkansen' om de analyse uit te voeren en de PDF te genereren.")
