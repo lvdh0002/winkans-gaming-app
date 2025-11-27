@@ -59,59 +59,55 @@ st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_
 
 ### SIDEBAR INPUTS
 
-# -------------------------
-# Sidebar inputs
-# -------------------------
-st.sidebar.header("Stap 1: Beoordelingsmethodiek")
-st.sidebar.number_input("Prijs (%)", min_value=0, max_value=100, key="prijs_pct", on_change=update_prijs)
-st.sidebar.number_input("Kwaliteit (%)", min_value=0, max_value=100, key="kwaliteit_pct", on_change=update_kwaliteit)
+st.sidebar.subheader("Stap 2 — Per criterium (wegingen & max punten)")
 
-prijs_pct = st.session_state.prijs_pct
-kwaliteit_pct = st.session_state.kwaliteit_pct
-st.sidebar.markdown(f"**Opmerking:** prijs + kwaliteit = **{prijs_pct + kwaliteit_pct}** (altijd 100)")
+# Totale prijsweging
+prijs_pct = st.sidebar.number_input(
+    "Prijsweging (%)",
+    min_value=0, max_value=100, value=40, step=1
+)
 
-# Score schaal
-scales = {"0-2-4-6-8-10":[0,2,4,6,8,10],
-          "0-20-40-60-80-100":[0,20,40,60,80,100],
-          "0-25-50-75-100":[0,25,50,75,100],
-          "Custom...":None}
-scale_label = st.sidebar.selectbox("Score schaal", list(scales.keys()))
-if scale_label != "Custom...":
-    scale_values = scales[scale_label]
-else:
-    raw = st.sidebar.text_input("Eigen schaal (comma separated)", "0,25,50,75,100")
-    try:
-        scale_values = [float(x.strip()) for x in raw.split(",") if x.strip() != ""]
-        if len(scale_values)<2: scale_values=[0,25,50,75,100]
-    except:
-        scale_values=[0,25,50,75,100]
-max_scale = max(scale_values)
+# Automatisch afgeleide kwaliteitsweging
+kwaliteit_pct = 100 - prijs_pct
+st.sidebar.write(f"Kwaliteitsweging totaal: **{kwaliteit_pct}%**")
 
-# Criteria names
-criteria_input = st.sidebar.text_input("Criterianamen (komma-gescheiden)", "Duurzaamheid,Service")
-criteria = [c.strip() for c in criteria_input.split(",") if c.strip()]
-if not criteria:
-    st.sidebar.error("Voeg minstens één criterium toe.")
+# Aantal kwaliteitscriteria
+num_criteria = st.sidebar.number_input(
+    "Aantal kwaliteitscriteria",
+    min_value=1, max_value=5, value=len(criteria), step=1
+)
 
-# Per criterium: weighting & max points
-criterion_weights = {}
-criterion_maxpoints = {}
-st.sidebar.markdown("### Per criterium: weging (%) & max punten")
+# Verdeel kwaliteitsweging automatisch
+default_quality_weight = round(kwaliteit_pct / num_criteria)
+
+criteria = [f"Criterium {i+1}" for i in range(num_criteria)]
+
+criterion_weights = {"Prijs": prijs_pct}
+criterion_maxpoints = {"Prijs": prijs_pct}  # max punten = weging, tenzij later aangepast
+
+quality_weights = {}
+
 for c in criteria:
-    st.sidebar.markdown(f"**{c}**")
-    w = st.sidebar.number_input(f"Weging {c} (%)", min_value=0.0, max_value=100.0, value=round(100.0/len(criteria),1), step=0.5, key=f"w_{c}")
-    p = st.sidebar.number_input(f"Max punten {c}", min_value=0.0, max_value=1000.0, value=30.0, step=1.0, key=f"p_{c}")
-    criterion_weights[c] = float(w)
-    criterion_maxpoints[c] = float(p)
-sum_weights = sum(criterion_weights.values()) or 100.0
+    w = st.sidebar.number_input(
+        f"Weging {c} (%)",
+        min_value=0, max_value=100,
+        value=default_quality_weight,
+        step=1
+    )
 
-# JDE expected scores per criterion
-verwachte_scores_eigen = {}
-for c in criteria:
-    sel = st.sidebar.selectbox(f"Score JDE voor {c}", [str(x) for x in scale_values], key=f"jde_score_{c}")
-    try: verwachte_scores_eigen[c]=float(sel)
-    except: verwachte_scores_eigen[c]=float(scale_values[0])
-margin_pct = st.sidebar.number_input("% duurder dan goedkoopste (JDE)", min_value=0.0, max_value=100.0, value=10.0, step=0.1)
+    criterion_weights[c] = w
+    criterion_maxpoints[c] = w  # max punten standaard = weging
+
+# Mogelijkheid om max punten handmatig aan te passen
+st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
+for c in ["Prijs"] + criteria:
+    mp = st.sidebar.number_input(
+        f"Max punten {c}",
+        min_value=0, max_value=200,
+        value=criterion_maxpoints[c],
+        step=1
+    )
+    criterion_maxpoints[c] = mp
 
 
 ### PART 4: SCENARIO INPUTS
