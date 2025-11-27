@@ -236,11 +236,7 @@ if st.button("Bereken winkansen"):
         comp_p=absolute_price_points(s["marge"],max_price_points)
         comp_total=comp_q_total+comp_p
 
-        status, prijsactie, kwalactie, drop_int=determine_status_and_actions(
-            jde_total,jde_q_total,jde_p,
-            comp_total,comp_q_total,comp_p,
-            margin_pct,s["marge"]
-        )
+        status, prijsactie, kwalactie, drop_int=determine_status_and_actions(jde_total,jde_q_total,jde_p,comp_total,comp_q_total,comp_p,margin_pct,s["marge"])
         verschil=int(round(jde_total-comp_total))
 
         row={"Scenario":f"{idx}. {s['naam']}",
@@ -273,15 +269,6 @@ if st.button("Bereken winkansen"):
     # -------------------------
     # Compact PDF
     # -------------------------
-    import io
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib import colors
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, Image
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.lib.utils import ImageReader
-
     pdf_buf=io.BytesIO()
     doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
 
@@ -316,13 +303,15 @@ if st.button("Bereken winkansen"):
         logo=Paragraph("", styles["JDENormal"])
 
     header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
-    header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
-                                      ('VALIGN',(0,0),(-1,0),'MIDDLE'),
-                                      ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-                                      ('LEFTPADDING',(0,0),(1,0),10),
-                                      ('RIGHTPADDING',(0,0),(1,0),10),
-                                      ('TOPPADDING',(0,0),(1,0),8),
-                                      ('BOTTOMPADDING',(0,0),(1,0),8)]))
+    header_table.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#F5EAD6")), # bruiner/beige
+        ('VALIGN',(0,0),(-1,0),'MIDDLE'),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#8B6E4E")), # donkerder bruin
+        ('LEFTPADDING',(0,0),(1,0),10),
+        ('RIGHTPADDING',(0,0),(1,0),10),
+        ('TOPPADDING',(0,0),(1,0),8),
+        ('BOTTOMPADDING',(0,0),(1,0),8)
+    ]))
     flow.append(header_table)
     flow.append(Spacer(1,12))
 
@@ -342,12 +331,14 @@ if st.button("Bereken winkansen"):
         jde_contrib=jde_breakdown[c]["contribution"]
         crit_table_data.append([c,f"{wt:.1f}",f"{mp:.1f}",f"{int(jde_score)}",f"{jde_raw}",f"{jde_contrib}"])
     crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
-    crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
-                                  ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-                                  ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
-                                  ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
-                                  ('FONTSIZE',(0,0),(-1,-1),9),
-                                  ('ALIGN',(1,1),(-1,-1),'CENTER')]))
+    crit_tbl.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#D6BFA1")), # header iets donkerder bruin
+        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
+        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")), # gridlines crème
+        ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('ALIGN',(1,1),(-1,-1),'CENTER')
+    ]))
     flow.append(crit_tbl)
     flow.append(Spacer(1,10))
 
@@ -357,9 +348,9 @@ if st.button("Bereken winkansen"):
     col_widths=[170,70,60,150,150]
     t=Table(table_data, colWidths=col_widths)
     t.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#D6BFA1")), # header
         ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
+        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")), # gridlines crème
         ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
         ('FONTSIZE',(0,0),(-1,-1),9),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
@@ -368,7 +359,7 @@ if st.button("Bereken winkansen"):
     ]))
     for i in range(1,len(table_data)):
         stt=str(rows[i-1]["Status"]).upper()
-        bg=colors.HexColor("#FFFAF6")
+        bg=colors.HexColor("#F5EAD6")
         if stt=="WIN": bg=colors.HexColor("#E6EBD8")
         elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")
         t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
@@ -388,9 +379,8 @@ if st.button("Bereken winkansen"):
         styles["JDEItalic"]
     ))
 
-    # Achtergrondkleur aanpassen naar beige
     def draw_bg(canvas,doc):
-        canvas.setFillColor(colors.HexColor("#FFF8E7"))  # beige
+        canvas.setFillColor(colors.HexColor("#F5EAD6")) # bruiner/beige achtergrond
         canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
 
     doc.build(flow,onFirstPage=draw_bg)
