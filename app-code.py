@@ -342,12 +342,13 @@ if st.button("Bereken winkansen"):
         mp = criterion_maxpoints.get(c, 0.0)
         jde_score = verwachte_scores_eigen.get(c, 0.0)
         jde_raw = int(round(jde_breakdown[c]["raw_points"]))
-        crit_table_data.append([c, f"{wt:.1f}", f"{mp:.1f}", f"{int(jde_score)}", f"{jde_raw}"])
+        crit_table_data.append([c, int(round(wt)), int(round(mp)), int(round(jde_score)), jde_raw])
 
     # Prijs-rij correct (gewicht en max punten uit sidebar)
     prijs_wt = criterion_weights.get("Prijs", 0.0)
     prijs_mp = criterion_maxpoints.get("Prijs", 0.0)
-    crit_table_data.append(["Prijs", f"{prijs_wt:.1f}", f"{prijs_mp:.1f}", f"{int(round(jde_p))}", f"{int(round(jde_p))}"])
+    crit_table_data.append(["Prijs", int(round(prijs_wt)), int(round(prijs_mp)), int(round(jde_p)), int(round(jde_p))])
+
 
     crit_tbl = Table(crit_table_data, colWidths=[140, 70, 70, 70, 80])
     crit_tbl.setStyle(TableStyle([
