@@ -227,10 +227,10 @@ st.header("Resultaten")
 
 if st.button("Bereken winkansen"):
     jde_q_total, jde_breakdown = compute_quality_points_and_breakdown(verwachte_scores_eigen)
-    max_price_points = float(prijs_pct)
-    jde_p = absolute_price_points(margin_pct, max_price_points)
+    max_price_points = int(round(prijs_pct))  # max prijs punten als geheel getal
+    jde_p = int(round(absolute_price_points(margin_pct, max_price_points)))  # bereken prijs punten als integer
     jde_total = jde_q_total + jde_p
-
+    
     rows = []
     for idx, s in enumerate(scenarios, start=1):
         comp_q_total, comp_breakdown = compute_quality_points_and_breakdown(s["kval_scores"])
@@ -347,7 +347,7 @@ if st.button("Bereken winkansen"):
     # Prijs-rij correct (gewicht en max punten uit sidebar)
     prijs_wt = criterion_weights.get("Prijs", 0.0)
     prijs_mp = criterion_maxpoints.get("Prijs", 0.0)
-    crit_table_data.append(["Prijs", int(round(prijs_wt)), int(round(prijs_mp)), int(round(jde_p)), int(round(jde_p))])
+    crit_table_data.append(["Prijs", int(round(prijs_wt)), int(round(prijs_mp)), jde_p, jde_p])
 
 
     crit_tbl = Table(crit_table_data, colWidths=[140, 70, 70, 70, 80])
