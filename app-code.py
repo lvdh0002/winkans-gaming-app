@@ -19,6 +19,24 @@ if "prijs_pct" not in st.session_state:
 if "kwaliteit_pct" not in st.session_state:
     st.session_state.kwaliteit_pct = 60
 
+# -------------------------
+# Session state defaults
+# -------------------------
+if "prijs_pct" not in st.session_state:
+    st.session_state.prijs_pct = 40
+if "kwaliteit_pct" not in st.session_state:
+    st.session_state.kwaliteit_pct = 60
+if "criteria" not in st.session_state:
+    st.session_state.criteria = ["Flexibiliteit", "Dienstverlening", "Duurzaamheid"]
+if "score_scale" not in st.session_state:
+    st.session_state.score_scale = [0, 20, 40, 60, 80, 100]
+if "num_competitors" not in st.session_state:
+    st.session_state.num_competitors = 3
+if "price_weight" not in st.session_state:
+    st.session_state.price_weight = 40
+if "margin_pct" not in st.session_state:
+    st.session_state.margin_pct = 10.0
+
 def update_prijs():
     st.session_state.kwaliteit_pct = 100 - st.session_state.prijs_pct
 
