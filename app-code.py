@@ -389,7 +389,6 @@ doc.build(flow,onFirstPage=draw_bg)
 pdf_buf.seek(0)
 st.download_button("📄 Download compacte JDE one-pager (PDF)", data=pdf_buf.getvalue(), file_name="winkans_onepager.pdf", mime="application/pdf")
 st.success("Analyse voltooid — download de compacte one-pager of exporteer de volledige data (CSV).")
-```
 
 else:
 st.info("Klik op 'Bereken winkansen' om de analyse uit te voeren en de PDF te genereren.")
