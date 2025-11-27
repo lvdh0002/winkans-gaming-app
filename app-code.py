@@ -59,75 +59,108 @@ st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_
 
 ### PART 3: SIDEBAR INPUTS
 
-st.sidebar.subheader("Stap 2 — Per criterium (wegingen & max punten)")
+# --- SIDEBAR: BASISINSTELLINGEN ---
+st.sidebar.header("Instellingen")
 
-# -----------------------------
-# 1. Prijs / kwaliteit weging
-# -----------------------------
-prijs_pct = st.sidebar.number_input(
-    "Prijsweging (%)",
-    min_value=0, max_value=100, value=st.session_state.prijs_pct, step=1,
-    on_change=update_prijs
-)
-
-kwaliteit_pct = st.session_state.kwaliteit_pct
-st.sidebar.write(f"Kwaliteitsweging totaal: **{kwaliteit_pct}%**")
-
-# -----------------------------
-# 2. Aantal kwaliteitscriteria
-# -----------------------------
+# Aantal kwaliteitscriteria
 num_criteria = st.sidebar.number_input(
     "Aantal kwaliteitscriteria",
-    min_value=1, max_value=5, value=3, step=1
+    min_value=1, max_value=5, value=len(criteria),
+    step=1, key="num_crit"
 )
 
-# Bouw lijst criteria
-criteria = [f"Criterium {i+1}" for i in range(num_criteria)]
+# Criteria-namen (automatisch aanvullen/inkorten)
+criteria = criteria[:num_criteria] + [
+    f"Criteria {i+1}" for i in range(len(criteria), num_criteria)
+]
 
-# -----------------------------
-# 3. Automatische verdeling wegingen
-# -----------------------------
-auto_weight = round(kwaliteit_pct / num_criteria)
+# Wegingen
+st.sidebar.subheader("Wegingen (%)")
+price_weight = st.sidebar.number_input(
+    "Weging prijs (%)",
+    min_value=0.0, max_value=100.0,
+    value=price_weight, step=1.0,
+    key="weight_price"
+)
+quality_weight = 100 - price_weight
 
-criterion_weights = {"Prijs": prijs_pct}
-criterion_maxpoints = {"Prijs": prijs_pct}
+# Handmatige beoordelingsschaal
+st.sidebar.subheader("Beoordelingsschaal kwaliteit (bijv. 0,20,40,60,80,100)")
+scale_input = st.sidebar.text_input(
+    "Schaal",
+    value=",".join(str(s) for s in score_scale),
+    key="scale_in"
+)
+score_scale = [float(x.strip()) for x in scale_input.split(",")]
 
-for c in criteria:
-    w = st.sidebar.number_input(
-        f"Weging {c} (%)",
-        min_value=0,
-        max_value=100,
-        value=auto_weight,
-        step=1,
-        key=f"weight_{c}"  # ← unieke key
+# --- SIDEBAR: SCENARIO-INVOER ---
+st.sidebar.header("Scenario-invoer")
+
+num_competitors = st.sidebar.number_input(
+    "Aantal concurrenten",
+    min_value=1, max_value=10, value=num_competitors,
+    key="num_comp"
+)
+
+scenarios = []
+for i in range(num_competitors):
+    st.sidebar.subheader(f"Concurrent {i+1}")
+
+    # Checkbox "Is goedkoopste"
+    is_cheapest = st.sidebar.checkbox(
+        "Is goedkoopste aanbieder?",
+        value=False,
+        key=f"cheap_{i}"
     )
-    criterion_weights[c] = w
-    criterion_maxpoints[c] = w
 
-# -----------------------------
-# 4. Handmatige max punten
-# -----------------------------
-st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
+    # Prijsmarge-input (alleen als niet goedkoopste)
+    if is_cheapest:
+        margin_pct = 0.0
+    else:
+        margin_pct = st.sidebar.number_input(
+            "% duurder dan goedkoopste",
+            min_value=0.0, max_value=200.0,
+            value=10.0,
+            step=0.1,
+            key=f"margin_{i}"
+        )
 
-for c in ["Prijs"] + criteria:
-    mp = st.sidebar.number_input(
-        f"Max punten {c}",
-        min_value=0, max_value=200, value=criterion_maxpoints[c], step=1
+    # Kwaliteitsscores voor deze concurrent
+    comp_scores = []
+    for c in range(num_criteria):
+        sc = st.sidebar.selectbox(
+            f"Score op {criteria[c]}",
+            options=score_scale,
+            index=0,
+            key=f"comp_{i}_{c}"
+        )
+        comp_scores.append(sc)
+
+    scenarios.append({
+        "is_cheapest": is_cheapest,
+        "margin_pct": margin_pct,
+        "quality_scores": comp_scores
+    })
+
+# --- EIGEN INVOER ---
+st.sidebar.header("Eigen aanbod")
+
+self_price_pos = st.sidebar.number_input(
+    "% duurder dan goedkoopste (jij)",
+    min_value=0.0, max_value=200.0,
+    value=10.0, step=0.1,
+    key="self_margin"
+)
+
+self_scores = []
+for c in range(num_criteria):
+    sc = st.sidebar.selectbox(
+        f"Jouw score op {criteria[c]}",
+        options=score_scale,
+        index=0,
+        key=f"self_score_{c}"
     )
-    criterion_maxpoints[c] = mp
-
-# Mogelijkheid om max punten handmatig aan te passen
-st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
-for c in ["Prijs"] + criteria:
-    mp = st.sidebar.number_input(
-        f"Max punten {c}",
-        min_value=0, 
-        max_value=200,
-        value=criterion_maxpoints[c],
-        step=1,
-        key=f"mp_{c}"   # ← unieke key per widget
-    )
-    criterion_maxpoints[c] = mp
+    self_scores.append(sc)
 
 
 ### PART 4: SCENARIO INPUTS
