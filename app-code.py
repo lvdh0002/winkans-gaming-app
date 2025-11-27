@@ -225,7 +225,6 @@ def advice_route_text(price_action, qual_action):
 st.header("Resultaten")
 
 if st.button("Bereken winkansen"):
-    # Bereken JDE scores
     jde_q_total,jde_breakdown=compute_quality_points_and_breakdown(verwachte_scores_eigen)
     max_price_points=float(prijs_pct)
     jde_p=absolute_price_points(margin_pct,max_price_points)
@@ -237,8 +236,10 @@ if st.button("Bereken winkansen"):
         comp_p=absolute_price_points(s["marge"],max_price_points)
         comp_total=comp_q_total+comp_p
 
-        status, prijsactie, kwalactie, drop_int = determine_status_and_actions(
-            jde_total,jde_q_total,jde_p,comp_total,comp_q_total,comp_p,margin_pct,s["marge"]
+        status, prijsactie, kwalactie, drop_int=determine_status_and_actions(
+            jde_total,jde_q_total,jde_p,
+            comp_total,comp_q_total,comp_p,
+            margin_pct,s["marge"]
         )
         verschil=int(round(jde_total-comp_total))
 
@@ -272,6 +273,15 @@ if st.button("Bereken winkansen"):
     # -------------------------
     # Compact PDF
     # -------------------------
+    import io
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer, Image
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.lib.utils import ImageReader
+
     pdf_buf=io.BytesIO()
     doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
 
@@ -292,7 +302,7 @@ if st.button("Bereken winkansen"):
 
     flow=[]
 
-    # Header table met crème achtergrond
+    # Header table
     logo_width, logo_height = 120, 30
     if os.path.exists(LOGO_PATH):
         try:
@@ -305,27 +315,21 @@ if st.button("Bereken winkansen"):
     else:
         logo=Paragraph("", styles["JDENormal"])
 
-    header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]],
-                       colWidths=[logo_width+8,500])
-    header_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
-        ('VALIGN',(0,0),(-1,0),'MIDDLE'),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-        ('LEFTPADDING',(0,0),(1,0),10),
-        ('RIGHTPADDING',(0,0),(1,0),10),
-        ('TOPPADDING',(0,0),(1,0),8),
-        ('BOTTOMPADDING',(0,0),(1,0),8)
-    ]))
+    header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
+    header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
+                                      ('VALIGN',(0,0),(-1,0),'MIDDLE'),
+                                      ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
+                                      ('LEFTPADDING',(0,0),(1,0),10),
+                                      ('RIGHTPADDING',(0,0),(1,0),10),
+                                      ('TOPPADDING',(0,0),(1,0),8),
+                                      ('BOTTOMPADDING',(0,0),(1,0),8)]))
     flow.append(header_table)
     flow.append(Spacer(1,12))
 
     # JDE uitgangssituatie
     flow.append(Paragraph("JDE uitgangssituatie", styles["JDESub"]))
     jde_scores_text=", ".join([f"{c}: {int(verwachte_scores_eigen.get(c,0))}" for c in criteria])
-    flow.append(Paragraph(
-        f"Prijspositie: {margin_pct:.1f}% duurder dan goedkoopste. Score-schaal: {scale_label}. Kwaliteitsscore(s): {jde_scores_text}.",
-        styles["JDENormal"]
-    ))
+    flow.append(Paragraph(f"Prijspositie: {margin_pct:.1f}% duurder dan goedkoopste. Score-schaal: {scale_label}. Kwaliteitsscore(s): {jde_scores_text}.", styles["JDENormal"]))
     flow.append(Spacer(1,8))
 
     # Per-criterium table
@@ -338,14 +342,12 @@ if st.button("Bereken winkansen"):
         jde_contrib=jde_breakdown[c]["contribution"]
         crit_table_data.append([c,f"{wt:.1f}",f"{mp:.1f}",f"{int(jde_score)}",f"{jde_raw}",f"{jde_contrib}"])
     crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
-    crit_tbl.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
-        ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
-        ('FONTSIZE',(0,0),(-1,-1),9),
-        ('ALIGN',(1,1),(-1,-1),'CENTER')
-    ]))
+    crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
+                                  ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
+                                  ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
+                                  ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
+                                  ('FONTSIZE',(0,0),(-1,-1),9),
+                                  ('ALIGN',(1,1),(-1,-1),'CENTER')]))
     flow.append(crit_tbl)
     flow.append(Spacer(1,10))
 
@@ -386,8 +388,9 @@ if st.button("Bereken winkansen"):
         styles["JDEItalic"]
     ))
 
+    # Achtergrondkleur aanpassen naar beige
     def draw_bg(canvas,doc):
-        canvas.setFillColor(colors.HexColor("#FFFAF6"))
+        canvas.setFillColor(colors.HexColor("#FFF8E7"))  # beige
         canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
 
     doc.build(flow,onFirstPage=draw_bg)
