@@ -217,13 +217,9 @@ def advice_route_text(price_action, qual_action):
 
 ### PART 6: CALCULATION, RESULTS AND PDF
 
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase import pdfmetrics
-
-# Register custom fonts
-pdfmetrics.registerFont(TTFont("OswaldBold", "assets/Oswald-Bold.ttf"))
-pdfmetrics.registerFont(TTFont("Aptos", "assets/Aptos-Regular.ttf"))
-
+# -------------------------
+# Run analysis & UI output
+# -------------------------
 st.header("Resultaten")
 
 if st.button("Bereken winkansen"):
@@ -273,32 +269,41 @@ if st.button("Bereken winkansen"):
     # -------------------------
     pdf_buf=io.BytesIO()
     doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
+
+    # Fonts registreren
+    oswald_path = os.path.join("assets", "Oswald-Bold.ttf")
+    aptos_path = os.path.join("assets", "Aptos-Regular.ttf")
+    aptos_italic_path = os.path.join("assets", "Aptos-Italic.ttf")
+    pdfmetrics.registerFont(TTFont("OswaldBold", oswald_path))
+    pdfmetrics.registerFont(TTFont("Aptos", aptos_path))
+    pdfmetrics.registerFont(TTFont("AptosItalic", aptos_italic_path))
+
+    # Styles
     styles=getSampleStyleSheet()
-    
-    # Custom styles
-    styles.add(ParagraphStyle(name="JDETitle", fontName="OswaldBold", fontSize=20, leading=24, textColor=colors.HexColor(PRIMARY_COLOR)))
+    styles.add(ParagraphStyle(name="JDETitle", fontName="OswaldBold", fontSize=20, leading=24, textColor=colors.HexColor("#333")))
     styles.add(ParagraphStyle(name="JDESub", fontName="OswaldBold", fontSize=12, leading=14, textColor=colors.HexColor("#333")))
-    styles.add(ParagraphStyle(name="JDENormal", fontName="Aptos", fontSize=10, leading=13, textColor=colors.black))
-    styles.add(ParagraphStyle(name="JDEItalic", fontName="Aptos", fontSize=9, leading=11, textColor=colors.HexColor("#444"), fontStyle="italic"))
+    styles.add(ParagraphStyle(name="JDENormal", fontName="Aptos", fontSize=10, leading=13, textColor=colors.HexColor("#333")))
+    styles.add(ParagraphStyle(name="JDEItalic", fontName="AptosItalic", fontSize=9, leading=11, textColor=colors.HexColor("#888888")))
 
     flow=[]
 
-    # Header table met creme logo
+    # Header table
+    logo_width, logo_height = 120, 30
     if os.path.exists(LOGO_PATH):
         try:
             img_reader=ImageReader(LOGO_PATH)
             iw,ih=img_reader.getSize()
-            logo_width=120
             logo_height=logo_width*(ih/iw)
             logo=Image(LOGO_PATH,width=logo_width,height=logo_height)
         except:
-            logo=Image(LOGO_PATH,width=100,height=30)
+            logo=Image(LOGO_PATH,width=logo_width,height=logo_height)
     else:
         logo=Paragraph("", styles["JDENormal"])
+
     header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
-    header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(PRIMARY_COLOR)),
+    header_table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
                                       ('VALIGN',(0,0),(-1,0),'MIDDLE'),
-                                      ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+                                      ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
                                       ('LEFTPADDING',(0,0),(1,0),10),
                                       ('RIGHTPADDING',(0,0),(1,0),10),
                                       ('TOPPADDING',(0,0),(1,0),8),
@@ -320,40 +325,35 @@ if st.button("Bereken winkansen"):
         jde_score=verwachte_scores_eigen.get(c,0.0)
         jde_raw=jde_breakdown[c]["raw_points"]
         jde_contrib=jde_breakdown[c]["contribution"]
-        crit_table_data.append([Paragraph(str(c),styles["JDENormal"]),
-                               Paragraph(f"{wt:.1f}",styles["JDENormal"]),
-                               Paragraph(f"{mp:.1f}",styles["JDENormal"]),
-                               Paragraph(f"{int(jde_score)}",styles["JDENormal"]),
-                               Paragraph(f"{jde_raw}",styles["JDENormal"]),
-                               Paragraph(f"{jde_contrib}",styles["JDENormal"])])
+        crit_table_data.append([c,f"{wt:.1f}",f"{mp:.1f}",f"{int(jde_score)}",f"{jde_raw}",f"{jde_contrib}"])
     crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
-    crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
-                                  ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                                  ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+    crit_tbl.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
+                                  ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
+                                  ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
                                   ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
                                   ('FONTSIZE',(0,0),(-1,-1),9),
-                                  ('ALIGN',(1,1),(-1,-1),'CENTER'),
-                                  ('VALIGN',(0,0),(-1,-1),'TOP')]))
+                                  ('ALIGN',(1,1),(-1,-1),'CENTER')]))
     flow.append(crit_tbl)
     flow.append(Spacer(1,10))
 
-    # Scenario overzicht table
+    # Scenario table
     pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
-    table_data=[pdf_cols]+[[Paragraph(str(r[col]),styles["JDENormal"]) for col in pdf_cols] for r in rows]
+    table_data=[pdf_cols]+[[Paragraph(str(r[col]), styles["JDENormal"]) for col in pdf_cols] for r in rows]
     col_widths=[170,70,60,150,150]
     t=Table(table_data, colWidths=col_widths)
     t.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-        ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
+        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
         ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
         ('FONTSIZE',(0,0),(-1,-1),9),
         ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('WORDWRAP',(0,1),(-1,-1),'CJK')
     ]))
     for i in range(1,len(table_data)):
         stt=str(rows[i-1]["Status"]).upper()
-        bg=colors.HexColor("#EDE1C9")
+        bg=colors.HexColor("#FFFAF6")
         if stt=="WIN": bg=colors.HexColor("#E6EBD8")
         elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")
         t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
@@ -366,12 +366,15 @@ if st.button("Bereken winkansen"):
     for r in rows:
         route=advice_route_text(r["Prijsactie"],r["Kwaliteitsactie"])
         flow.append(Paragraph(f"- {r['Scenario']}: {route} — {r['Prijsactie']}; {r['Kwaliteitsactie']}", styles["JDENormal"]))
-    flow.append(Spacer(1,8))
-    flow.append(Paragraph("Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.", styles["JDEItalic"]))
 
-    # Achtergrond kleur
+    flow.append(Spacer(1,8))
+    flow.append(Paragraph(
+        "Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.",
+        styles["JDEItalic"]
+    ))
+
     def draw_bg(canvas,doc):
-        canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
+        canvas.setFillColor(colors.HexColor("#FFFAF6"))
         canvas.rect(0,0,doc.pagesize[0],doc.pagesize[1],fill=1,stroke=0)
 
     doc.build(flow,onFirstPage=draw_bg)
