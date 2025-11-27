@@ -246,20 +246,18 @@ if st.button("Bereken winkansen"):
             "Status": status,
             "Verschil": verschil,
             "JDE totaal": round(jde_total, 2),
-            "JDE prijs pts": round(jde_p, 2),
-            "JDE kwaliteit pts (totaal)": round(jde_q_total, 2),
+            "JDE prijs pts": int(round(jde_p)),
+            "JDE kwaliteit pts (totaal)": int(round(jde_q_total)),
             "Conc totaal": round(comp_total, 2),
-            "Conc prijs pts": round(comp_p, 2),
-            "Conc kwaliteit pts (totaal)": round(comp_q_total, 2),
+            "Conc prijs pts": int(round(comp_p)),
+            "Conc kwaliteit pts (totaal)": int(round(comp_q_total)),
             "Prijsactie": prijsactie,
             "Kwaliteitsactie": kwalactie
         }
 
         for c in criteria:
             row[f"JDE {c} raw_pts"] = int(round(jde_breakdown[c]["raw_points"]))
-            row[f"JDE {c} contrib"] = jde_breakdown[c]["contribution"]
             row[f"Conc {c} raw_pts"] = int(round(comp_breakdown[c]["raw_points"]))
-            row[f"Conc {c} contrib"] = comp_breakdown[c]["contribution"]
 
         rows.append(row)
 
@@ -311,9 +309,9 @@ if st.button("Bereken winkansen"):
     header_table = Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]],
                          colWidths=[logo_width + 8, 500])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#EDE1C9")),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FFFAF6")),
         ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#4B3A2C")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#333")),
         ('LEFTPADDING', (0, 0), (1, 0), 10),
         ('RIGHTPADDING', (0, 0), (1, 0), 10),
         ('TOPPADDING', (0, 0), (1, 0), 8),
@@ -327,7 +325,6 @@ if st.button("Bereken winkansen"):
     # -------------------------
     flow.append(Paragraph("JDE uitgangssituatie", styles["JDESub"]))
 
-    # Boven de tabel: % duurder
     flow.append(Paragraph(
         f"Prijspositie: JDE is {margin_pct:.1f}% duurder dan de goedkoopste. Score-schaal: {scale_label}.",
         styles["JDENormal"]
@@ -346,16 +343,16 @@ if st.button("Bereken winkansen"):
         jde_raw = int(round(jde_breakdown[c]["raw_points"]))
         crit_table_data.append([c, f"{wt:.1f}", f"{mp:.1f}", f"{int(jde_score)}", f"{jde_raw}"])
 
-    # Voeg Prijs-rij toe
+    # Prijs-rij correct
     prijs_wt = criterion_weights.get("Prijs", 0.0)
     prijs_mp = criterion_maxpoints.get("Prijs", 0.0)
     crit_table_data.append(["Prijs", f"{prijs_wt:.1f}", f"{prijs_mp:.1f}", f"{int(round(jde_p))}", f"{int(round(jde_p))}"])
 
     crit_tbl = Table(crit_table_data, colWidths=[140, 70, 70, 70, 80])
     crit_tbl.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E5DCC8")),  # header licht bruin
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#4B3A2C")),
-        ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor("#FFFAF6")),  # creme gridlines
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FFFAF6")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#333")),
+        ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor("#FFFAF6")),
         ('FONTNAME', (0, 0), (-1, 0), 'OswaldBold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
         ('ALIGN', (1, 1), (-1, -1), 'CENTER')
@@ -371,8 +368,8 @@ if st.button("Bereken winkansen"):
     col_widths = [170, 70, 60, 150, 150]
     t = Table(table_data, colWidths=col_widths)
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#E5DCC8")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#4B3A2C")),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FFFAF6")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.HexColor("#333")),
         ('GRID', (0, 0), (-1, -1), 0.25, colors.HexColor("#FFFAF6")),
         ('FONTNAME', (0, 0), (-1, 0), 'OswaldBold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -408,7 +405,7 @@ if st.button("Bereken winkansen"):
 
     # Achtergrondkleur pagina
     def draw_bg(canvas, doc):
-        canvas.setFillColor(colors.HexColor("#EDE1C9"))
+        canvas.setFillColor(colors.HexColor("#FFFAF6"))
         canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1, stroke=0)
 
     doc.build(flow, onFirstPage=draw_bg)
