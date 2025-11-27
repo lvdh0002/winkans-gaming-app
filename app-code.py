@@ -50,7 +50,16 @@ LOGO_PATH = os.path.join("assets","logo_jde.png")  # zorg dat dit pad klopt
 
 # Logo display in UI
 if os.path.exists(LOGO_PATH):
-    st.image(LOGO_PATH, width=120)
+    try:
+        img_reader = ImageReader(LOGO_PATH)
+        iw, ih = img_reader.getSize()
+        logo_width = 120
+        logo_height = logo_width * (ih / iw)
+        st.image(LOGO_PATH, width=logo_width)
+    except Exception:
+        st.image(LOGO_PATH, width=100)
+else:
+    logo = Paragraph("", styles["JDENormal"])
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
@@ -357,16 +366,15 @@ if st.button("Bereken winkansen"):
     title_par = Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])
     tagline = Paragraph("<b>Sustainability • Quality • People</b><br/>Een korte one-pager ter ondersteuning van je presentatie.", styles["JDENormal"])
 
-    # Create a table for header with background color to mimic a header bar
-    header_table = Table([[logo, Paragraph("<b>THE GASTVRIJE HUIS — JDE</b>", styles["JDETitle"]), tagline]], colWidths=[logo_width + 8, 320, 250])
+    header_table = Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width + 8, 500])
     header_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor(PRIMARY_COLOR)),
         ('VALIGN', (0,0), (-1,0), 'MIDDLE'),
         ('TEXTCOLOR', (0,0), (-1,0), colors.white),
-        ('LEFTPADDING',(0,0),(2,0),10),
-        ('RIGHTPADDING',(0,0),(2,0),10),
-        ('TOPPADDING',(0,0),(2,0),8),
-        ('BOTTOMPADDING',(0,0),(2,0),8),
+        ('LEFTPADDING',(0,0),(1,0),10),
+        ('RIGHTPADDING',(0,0),(1,0),10),
+        ('TOPPADDING',(0,0),(1,0),8),
+        ('BOTTOMPADDING',(0,0),(1,0),8),
     ]))
     flow.append(header_table)
     flow.append(Spacer(1, 12))
