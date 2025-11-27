@@ -347,7 +347,8 @@ if st.button("Bereken winkansen"):
     # Prijs-rij correct (gewicht en max punten uit sidebar)
     prijs_wt = criterion_weights.get("Prijs", 0.0)
     prijs_mp = criterion_maxpoints.get("Prijs", 0.0)
-    crit_table_data.append(["Prijs", int(round(prijs_wt)), int(round(prijs_mp)), jde_p, jde_p])
+    jde_price_points = int(round(jde_p))  # of direct de berekende waarde
+    crit_table_data.append(["Prijs", int(round(prijs_wt)), int(round(prijs_mp)), jde_price_points, jde_price_points])
 
 
     crit_tbl = Table(crit_table_data, colWidths=[140, 70, 70, 70, 80])
