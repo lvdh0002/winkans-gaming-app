@@ -1,6 +1,15 @@
 ### PART 1: IMPORTS AND SESSION STATE
 
-
+import streamlit as st
+import pandas as pd
+import math
+import io
+import os
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.utils import ImageReader
 
 # -------------------------
 # Session state: prijs/kwaliteit sync
@@ -106,7 +115,7 @@ margin_pct = st.sidebar.number_input("% duurder dan goedkoopste (JDE)", min_valu
 # -------------------------
 # Scenarios input
 # -------------------------
-st.header("📥 Concurrentsituaties")
+st.header("Concurrentsituaties")
 num_scen = st.number_input("Aantal situaties", min_value=1, max_value=15, value=3, step=1)
 
 scenarios = []
