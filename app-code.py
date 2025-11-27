@@ -271,9 +271,9 @@ if st.button("Bereken winkansen"):
     doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
 
     # Fonts registreren
-   oswald_path = "assets/Oswald-Bold.ttf"
-   aptos_path = "assets/Aptos-Regular.ttf"
-   aptos_italic_path = "assets/Aptos-Italic.ttf"
+    oswald_path = "assets/Oswald-Bold.ttf"
+    aptos_path = "assets/Aptos-Regular.ttf"
+    aptos_italic_path = "assets/Aptos-Italic.ttf"
     pdfmetrics.registerFont(TTFont("OswaldBold", oswald_path))
     pdfmetrics.registerFont(TTFont("Aptos", aptos_path))
     pdfmetrics.registerFont(TTFont("AptosItalic", aptos_italic_path))
