@@ -57,46 +57,60 @@ LOGO_PATH = os.path.join("assets","logo_jde.png")  # controleer dit pad
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
 
-### SIDEBAR INPUTS
+### PART 3: SIDEBAR INPUTS
 
 st.sidebar.subheader("Stap 2 — Per criterium (wegingen & max punten)")
 
-# Totale prijsweging
+# -----------------------------
+# 1. Prijs / kwaliteit weging
+# -----------------------------
 prijs_pct = st.sidebar.number_input(
     "Prijsweging (%)",
-    min_value=0, max_value=100, value=40, step=1
+    min_value=0, max_value=100, value=st.session_state.prijs_pct, step=1,
+    on_change=update_prijs
 )
 
-# Automatisch afgeleide kwaliteitsweging
-kwaliteit_pct = 100 - prijs_pct
+kwaliteit_pct = st.session_state.kwaliteit_pct
 st.sidebar.write(f"Kwaliteitsweging totaal: **{kwaliteit_pct}%**")
 
-# Aantal kwaliteitscriteria
+# -----------------------------
+# 2. Aantal kwaliteitscriteria
+# -----------------------------
 num_criteria = st.sidebar.number_input(
     "Aantal kwaliteitscriteria",
-    min_value=1, max_value=5, value=len(criteria), step=1
+    min_value=1, max_value=5, value=3, step=1
 )
 
-# Verdeel kwaliteitsweging automatisch
-default_quality_weight = round(kwaliteit_pct / num_criteria)
-
+# Bouw lijst criteria
 criteria = [f"Criterium {i+1}" for i in range(num_criteria)]
 
-criterion_weights = {"Prijs": prijs_pct}
-criterion_maxpoints = {"Prijs": prijs_pct}  # max punten = weging, tenzij later aangepast
+# -----------------------------
+# 3. Automatische verdeling wegingen
+# -----------------------------
+auto_weight = round(kwaliteit_pct / num_criteria)
 
-quality_weights = {}
+criterion_weights = {"Prijs": prijs_pct}
+criterion_maxpoints = {"Prijs": prijs_pct}
 
 for c in criteria:
     w = st.sidebar.number_input(
         f"Weging {c} (%)",
-        min_value=0, max_value=100,
-        value=default_quality_weight,
-        step=1
+        min_value=0, max_value=100, value=auto_weight, step=1
     )
-
     criterion_weights[c] = w
-    criterion_maxpoints[c] = w  # max punten standaard = weging
+    criterion_maxpoints[c] = w  # standaard = gelijke punten als weging
+
+# -----------------------------
+# 4. Handmatige max punten
+# -----------------------------
+st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
+
+for c in ["Prijs"] + criteria:
+    mp = st.sidebar.number_input(
+        f"Max punten {c}",
+        min_value=0, max_value=200, value=criterion_maxpoints[c], step=1
+    )
+    criterion_maxpoints[c] = mp
 
 # Mogelijkheid om max punten handmatig aan te passen
 st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
