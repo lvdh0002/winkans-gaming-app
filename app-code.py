@@ -1,20 +1,11 @@
 ### PART 1: IMPORTS AND SESSION STATE
 
-import streamlit as st
-import pandas as pd
-import math
-import io
-import os
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
-from reportlab.lib.utils import ImageReader
+
 
 # -------------------------
 # Session state: prijs/kwaliteit sync
 # -------------------------
-if "prijs_pctx" not in st.session_state:
+if "prijs_pct" not in st.session_state:
     st.session_state.prijs_pct = 40
 if "kwaliteit_pct" not in st.session_state:
     st.session_state.kwaliteit_pct = 60
