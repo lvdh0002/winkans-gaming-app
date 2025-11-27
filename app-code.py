@@ -223,10 +223,10 @@ def advice_route_text(price_action, qual_action):
 st.header("Resultaten")
 
 if st.button("Bereken winkansen"):
-jde_q_total,jde_breakdown=compute_quality_points_and_breakdown(verwachte_scores_eigen)
-max_price_points=float(prijs_pct)
-jde_p=absolute_price_points(margin_pct,max_price_points)
-jde_total=jde_q_total+jde_p
+    jde_q_total,jde_breakdown=compute_quality_points_and_breakdown(verwachte_scores_eigen)
+    max_price_points=float(prijs_pct)
+    jde_p=absolute_price_points(margin_pct,max_price_points)
+    jde_total=jde_q_total+jde_p
 
 ```
 rows=[]
