@@ -228,7 +228,6 @@ if st.button("Bereken winkansen"):
     jde_p=absolute_price_points(margin_pct,max_price_points)
     jde_total=jde_q_total+jde_p
 
-```
 rows=[]
 for idx,s in enumerate(scenarios,start=1):
     comp_q_total,comp_breakdown=compute_quality_points_and_breakdown(s["kval_scores"])
