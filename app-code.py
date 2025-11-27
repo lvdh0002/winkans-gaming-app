@@ -95,10 +95,14 @@ criterion_maxpoints = {"Prijs": prijs_pct}
 for c in criteria:
     w = st.sidebar.number_input(
         f"Weging {c} (%)",
-        min_value=0, max_value=100, value=auto_weight, step=1
+        min_value=0,
+        max_value=100,
+        value=auto_weight,
+        step=1,
+        key=f"weight_{c}"  # ← unieke key
     )
     criterion_weights[c] = w
-    criterion_maxpoints[c] = w  # standaard = gelijke punten als weging
+    criterion_maxpoints[c] = w
 
 # -----------------------------
 # 4. Handmatige max punten
@@ -117,9 +121,11 @@ st.sidebar.subheader("Max punten handmatig aanpassen (optioneel)")
 for c in ["Prijs"] + criteria:
     mp = st.sidebar.number_input(
         f"Max punten {c}",
-        min_value=0, max_value=200,
+        min_value=0, 
+        max_value=200,
         value=criterion_maxpoints[c],
-        step=1
+        step=1,
+        key=f"mp_{c}"   # ← unieke key per widget
     )
     criterion_maxpoints[c] = mp
 
