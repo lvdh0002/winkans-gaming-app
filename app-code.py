@@ -15,17 +15,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Session state: prijs/kwaliteit sync
 # -------------------------
 if "prijs_pct" not in st.session_state:
-    st.session_state.prijs_pct = 40
+    st.session_state.prijs_pct = 40.0
 if "kwaliteit_pct" not in st.session_state:
-    st.session_state.kwaliteit_pct = 60
-
-# -------------------------
-# Session state defaults
-# -------------------------
-if "prijs_pct" not in st.session_state:
-    st.session_state.prijs_pct = 40
-if "kwaliteit_pct" not in st.session_state:
-    st.session_state.kwaliteit_pct = 60
+    st.session_state.kwaliteit_pct = 60.0
 if "criteria" not in st.session_state:
     st.session_state.criteria = ["Flexibiliteit", "Dienstverlening", "Duurzaamheid"]
 if "score_scale" not in st.session_state:
@@ -33,7 +25,7 @@ if "score_scale" not in st.session_state:
 if "num_competitors" not in st.session_state:
     st.session_state.num_competitors = 3
 if "price_weight" not in st.session_state:
-    st.session_state.price_weight = 40
+    st.session_state.price_weight = 40.0
 if "margin_pct" not in st.session_state:
     st.session_state.margin_pct = 10.0
 
@@ -89,15 +81,15 @@ criteria = st.session_state.criteria[:num_criteria] + \
 st.session_state.criteria = criteria
 
 # Wegingen
-st.sidebar.subheader("Wegingen (%)")
 price_weight = st.sidebar.number_input(
     "Weging prijs (%)",
     min_value=0.0, max_value=100.0,
-    value=st.session_state.price_weight,
+    value=float(st.session_state.price_weight),
     step=1.0,
     key="weight_price"
 )
-quality_weight = 100 - price_weight
+
+quality_weight = 100.0 - price_weight
 
 # Beoordelingsschaal
 st.sidebar.subheader("Beoordelingsschaal kwaliteit (bijv. 0,20,40,60,80,100)")
