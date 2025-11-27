@@ -345,7 +345,7 @@ if st.button("Bereken winkansen"):
         ('WORDWRAP',(0,1),(-1,-1),'CJK'), # zorgt voor wrapping
     ]))
 
-        flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
+    flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
     pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
     table_data=[ [Paragraph(col, styles["JDENormal"]) for col in pdf_cols] ]  # header als Paragraph
 
