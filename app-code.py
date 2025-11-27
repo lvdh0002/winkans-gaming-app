@@ -345,24 +345,27 @@ if st.button("Bereken winkansen"):
         ('WORDWRAP',(0,1),(-1,-1),'CJK'), # zorgt voor wrapping
     ]))
 
-    flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
+        flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
     pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
-    table_data=[pdf_cols]+[[r[col] for col in pdf_cols] for r in rows]
-    t=Table(table_data,colWidths=[170,70,60,150,150])
-    t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
-                           ('TEXTCOLOR',(0,0),(-1,0),colors.white),
-                           ('GRID',(0,0),(-1,-1),0.25,colors.grey),
-                           ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
-                           ('FONTSIZE',(0,0),(-1,-1),9),
-                           ('ALIGN',(0,0),(-1,-1),'CENTER')]))
-    for i in range(1,len(table_data)):
-        stt=str(table_data[i][1]).upper()
-        bg=colors.HexColor("#EDE1C9")
-        if stt=="WIN": bg=colors.HexColor("#E6EBD8")
-        elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")
-        t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))
-    flow.append(t)
-    flow.append(Spacer(1,10))
+    table_data=[ [Paragraph(col, styles["JDENormal"]) for col in pdf_cols] ]  # header als Paragraph
+
+    for r in rows:
+        table_data.append([Paragraph(str(r[col]), styles["JDENormal"]) for col in pdf_cols])
+
+    col_widths=[170,70,60,150,150]
+    t=Table(table_data, colWidths=col_widths)
+
+    # TableStyle met wrapping
+    t.setStyle(TableStyle([
+        ('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
+        ('TEXTCOLOR',(0,0),(-1,0),colors.white),
+        ('GRID',(0,0),(-1,-1),0.25,colors.grey),
+        ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('FONTSIZE',(0,0),(-1,-1),9),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('WORDWRAP',(0,1),(-1,-1),'CJK'),  # CJK zorgt voor automatische wrapping
+    ]))
 
     # Advice routes & footnote
     flow.append(Paragraph("Adviesroutes", styles["JDESub"]))
