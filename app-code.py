@@ -221,8 +221,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 
 # Register custom fonts
-pdfmetrics.registerFont(TTFont("OswaldBold", "assets/fonts/Oswald-Bold.ttf"))
-pdfmetrics.registerFont(TTFont("Aptos", "assets/fonts/Aptos-Regular.ttf"))
+pdfmetrics.registerFont(TTFont("OswaldBold", "assets/Oswald-Bold.ttf"))
+pdfmetrics.registerFont(TTFont("Aptos", "assets/Aptos-Regular.ttf"))
 
 st.header("Resultaten")
 
