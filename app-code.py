@@ -361,6 +361,27 @@ if st.button("Bereken winkansen"):
         stt=str(rows[i-1]["Status"]).upper()  
         bg=colors.HexColor("#FFFAF6")  
         if stt=="WIN": bg=colors.HexColor("#E6EBD8")  
-        elif stt=="LO
+        elif stt=="LOSE": bg=colors.HexColor("#EAD5D1")  
+        t.setStyle(TableStyle([('BACKGROUND',(0,i),(-1,i),bg)]))  
+    flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))  
+    flow.append(t)  
+    flow.append(Spacer(1,10))  
 
-    st.info("Klik op 'Bereken winkansen' om de analyse uit te voeren en de PDF te genereren.")
+    # Advice routes & footnote  
+    flow.append(Paragraph("Adviesroutes", styles["JDESub"]))  
+    for r in rows:  
+        route=advice_route_text(r["Prijsactie"],r["Kwaliteitsactie"])  
+        flow.append(Paragraph(f"- {r['Scenario']}: {route} — {r['Prijsactie']}; {r['Kwaliteitsactie']}", styles["JDENormal"]))  
+
+    flow.append(Spacer(1,8))  
+    flow.append(Paragraph(  
+        "Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.",  
+        styles["JDEItalic"]  
+    ))  
+
+    doc.build(flow,onFirstPage=draw_bg)  
+    pdf_buf.seek(0)  
+    st.download_button("📄 Download compacte JDE one-pager (PDF)", data=pdf_buf.getvalue(), file_name="winkans_onepager.pdf", mime="application/pdf")  
+    st.success("Analyse voltooid — download de compacte one-pager of exporteer de volledige data (CSV).")  
+else:  
+    st.info("Klik op 'Bereken winkansen' om de analyse uit te voeren en de PDF te genereren.")  
