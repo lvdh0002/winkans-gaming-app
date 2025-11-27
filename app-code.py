@@ -6,9 +6,29 @@ import os
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import (
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+)
 
-# ============ JDE PAGE STYLING ============
+# ===============================
+# SESSION STATE + PRICE/QUALITY SYNC
+# ===============================
+
+if "prijs_pct" not in st.session_state:
+    st.session_state.prijs_pct = 40
+if "kwaliteit_pct" not in st.session_state:
+    st.session_state.kwaliteit_pct = 60
+
+def update_prijs():
+    st.session_state.kwaliteit_pct = 100 - st.session_state.prijs_pct
+
+def update_kwaliteit():
+    st.session_state.prijs_pct = 100 - st.session_state.kwaliteit_pct
+
+
+# ===============================
+# PAGE STYLE (JDE look)
+# ===============================
 
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 
@@ -24,13 +44,12 @@ h1, h2, h3, h4 {
 
 html, body, .stApp {
     background-color: #F3E9DB;
-    font-family: 'Segoe UI', sans-serif !important;  /* Aptos-look */
+    font-family: 'Segoe UI', sans-serif !important;
     color: #000;
 }
 
 .stButton>button {
     font-family: 'Oswald', sans-serif !important;
-    font-weight: 700;
     background: #7A1F1F;
     color: #fff;
     border-radius: 6px;
@@ -57,23 +76,39 @@ PAGE_BEIGE = "#F3E9DB"
 
 LOGO_PATH = os.path.join("assets", "logo_jde.png")
 
-# ==========================================
+# ===============================
+# HEADER
+# ===============================
 
 if os.path.exists(LOGO_PATH):
     st.image(LOGO_PATH, width=120)
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
-# ============ SIDEBAR SETTINGS ============
+# ===============================
+# SIDEBAR
+# ===============================
 
 st.sidebar.header("Stap 1: Beoordelingsmethodiek")
 
-# Prijs + kwaliteit = 100
-prijs_pct = st.sidebar.slider("Prijs (%)", 0, 100, 40)
-kwaliteit_pct = 100 - prijs_pct
-st.sidebar.markdown(f"**Kwaliteit (%)**: {kwaliteit_pct} (automatisch)")
+# 1. Prijs & kwaliteit met automatische synchronisatie
+st.sidebar.number_input(
+    "Prijs (%)",
+    min_value=0, max_value=100,
+    key="prijs_pct",
+    on_change=update_prijs
+)
+st.sidebar.number_input(
+    "Kwaliteit (%)",
+    min_value=0, max_value=100,
+    key="kwaliteit_pct",
+    on_change=update_kwaliteit
+)
 
-# Schalen
+prijs_pct = st.session_state.prijs_pct
+kwaliteit_pct = st.session_state.kwaliteit_pct
+
+# 2. Score schaalkeuze
 scales = {
     "0-2-4-6-8-10": [0,2,4,6,8,10],
     "0-20-40-60-80-100": [0,20,40,60,80,100],
@@ -81,36 +116,45 @@ scales = {
     "Custom...": None
 }
 
-scale_label = st.sidebar.selectbox("Kies een schaal", list(scales.keys()))
+scale_label = st.sidebar.selectbox("Score schaal", list(scales.keys()))
 if scale_label != "Custom...":
     scale_values = scales[scale_label]
 else:
-    raw = st.sidebar.text_input("Custom schaal (comma separated)", "0,25,50,75,100")
+    raw = st.sidebar.text_input("Eigen schaal", "0,25,50,75,100")
     try:
-        scale_values = [float(x.strip()) for x in raw.split(",") if x.strip()]
+        scale_values = [float(x.strip()) for x in raw.split(",")]
     except:
-        st.sidebar.error("Ongeldige schaal — standaard toegepast.")
         scale_values = [0,25,50,75,100]
 
 max_scale = max(scale_values)
 
-# Criteria
+# 3. Criteria
 criteria = [c.strip() for c in st.sidebar.text_input("Criterianamen", "Duurzaamheid,Service").split(",") if c.strip()]
-max_points_criteria = {c: st.sidebar.number_input(f"Max punten {c}", 1, 200, 30, key=f"max_{c}") for c in criteria}
-max_price_points = st.sidebar.number_input("Max punten Prijs", 1, 200, 40)
 
-# JDE scores
+# Automatische verdeling max quality points
+orig_points = {c: 1 for c in criteria}  # gelijke basisverdeling
+sum_orig = sum(orig_points.values())
+
+max_points_criteria = {
+    c: round((orig_points[c] / sum_orig) * kwaliteit_pct, 2)
+    for c in criteria
+}
+
+max_price_points = prijs_pct
+
+# 4. JDE kwaliteitsscores
 verwachte_scores_eigen = {}
 for c in criteria:
-    sel = st.sidebar.selectbox(f"Score {c} (JDE)", [str(x) for x in scale_values])
-    try:
-        verwachte_scores_eigen[c] = float(sel)
-    except:
-        verwachte_scores_eigen[c] = 0
+    sel = st.sidebar.selectbox(f"Score JDE voor {c}", [str(x) for x in scale_values], key=f"jde_{c}")
+    verwachte_scores_eigen[c] = float(sel)
 
+# 5. JDE marge
 margin_pct = st.sidebar.number_input("% duurder dan goedkoopste (JDE)", 0.0, 100.0, 10.0, 0.1)
 
-# ============ SCENARIOS ============
+
+# ===============================
+# CONCURRENT SCENARIO'S
+# ===============================
 
 st.header("📥 Concurrentsituaties")
 
@@ -120,21 +164,23 @@ scenarios = []
 for i in range(int(num_scen)):
     with st.expander(f"Scenario {i+1}"):
         naam = st.text_input("Naam concurrent", f"Concurrent {i+1}", key=f"naam{i}")
-        cheapest = st.checkbox("Is goedkoopste?", key=f"cheap{i}")
+        cheap = st.checkbox("Is goedkoopste?", key=f"cheap{i}")
+        marge = 0 if cheap else st.number_input("Marge (%)", 0.0, 100.0, margin_pct, 0.1, key=f"marge{i}")
 
-        marge = 0 if cheapest else st.number_input("% duurder dan goedkoopste", 0.0, 100.0, margin_pct, 0.1, key=f"m{i}")
-
-        kval_scores = {}
+        kval = {}
         for c in criteria:
-            sel = st.selectbox(f"Score {c}", [str(x) for x in scale_values], key=f"s_{i}_{c}")
-            kval_scores[c] = float(sel)
+            sel = st.selectbox(f"Score {c}", [str(x) for x in scale_values], key=f"sc_{i}_{c}")
+            kval[c] = float(sel)
 
-        scenarios.append({"naam": naam, "marge": marge, "kval_scores": kval_scores})
+        scenarios.append({"naam": naam, "marge": marge, "kval_scores": kval})
 
-# ============ HELPERS ============
+
+# ===============================
+# HELPER FUNCTIONS
+# ===============================
 
 def score_to_points(score, max_points):
-    return (float(score) / max_scale) * max_points
+    return (score / max_scale) * max_points
 
 def compute_quality_points(scores):
     return sum(score_to_points(scores[c], max_points_criteria[c]) for c in criteria)
@@ -142,11 +188,12 @@ def compute_quality_points(scores):
 def absolute_price_points(marge, maxp):
     return maxp * (1 - marge / 100)
 
-def required_drop_piecewise(my_m, comp_m, Qm, Qc, M):
+def required_drop(my_m, comp_m, Qm, Qc, M):
     try:
-        mA = comp_m + (100 / M) * (Qm - Qc)
-        mB = comp_m - (100 / M) * (Qc - Qm)
-        m_req = mA if mA >= comp_m else mB
+        m_req_A = comp_m + (100 / M) * (Qm - Qc)
+        m_req_B = comp_m - (100 / M) * (Qc - Qm)
+        m_req = m_req_A if m_req_A >= comp_m else m_req_B
+
         drop = max(0, my_m - m_req)
         drop_int = int(math.ceil(drop))
         target = int(round(my_m - drop_int))
@@ -163,7 +210,10 @@ def advice_route(price, quality):
         return "Adviesroute: kwaliteit"
     return "Adviesroute: geen actie"
 
-# ============ BEREKENING ============
+
+# ===============================
+# BEREKENING
+# ===============================
 
 st.header("Resultaten")
 
@@ -175,7 +225,7 @@ if st.button("Bereken winkansen"):
 
     rows = []
 
-    for idx, s in enumerate(scenarios, start=1):
+    for s in scenarios:
 
         comp_q = compute_quality_points(s["kval_scores"])
         comp_p = absolute_price_points(s["marge"], max_price_points)
@@ -190,24 +240,25 @@ if st.button("Bereken winkansen"):
 
         verschil = int(round(jde_total - comp_total))
 
-        drop, target = required_drop_piecewise(margin_pct, s["marge"], jde_q, comp_q, max_price_points)
+        drop, target = required_drop(margin_pct, s["marge"], jde_q, comp_q, max_price_points)
         prijsactie = "Geen actie nodig" if status == "WIN" else f"Verlaag {drop}% → {target}%"
 
-        # Kwaliteitsactie
-        qual_act = "-"
+        qual_action = "-"
         if status != "WIN":
             for c in criteria:
                 cur = verwachte_scores_eigen[c]
                 higher = [x for x in scale_values if x > cur]
+
                 for nxt in higher:
                     gain = score_to_points(nxt, max_points_criteria[c]) - score_to_points(cur, max_points_criteria[c])
                     if jde_q + gain + jde_p > comp_total:
-                        qual_act = f"Verhoog {c} {int(cur)} → {int(nxt)} (+{int(gain)}p)"
+                        qual_action = f"Verhoog {c} {int(cur)} → {int(nxt)} (+{int(gain)}p)"
                         break
-                if qual_act != "-":
+                if qual_action != "-":
                     break
-            if qual_act == "-":
-                qual_act = "Ontoereikend"
+
+            if qual_action == "-":
+                qual_action = "Ontoereikend"
 
         rows.append({
             "Scenario": s["naam"],
@@ -220,39 +271,46 @@ if st.button("Bereken winkansen"):
             "Conc kwaliteit": round(comp_q, 2),
             "Conc prijs": round(comp_p, 2),
             "Prijsactie": prijsactie,
-            "Kwaliteitsactie": qual_act
+            "Kwaliteitsactie": qual_action
         })
 
     df = pd.DataFrame(rows)
 
-    st.subheader("Volledige tabel (met kwaliteit- en prijspunten)")
+    st.subheader("Volledige resultaten")
     st.dataframe(df, use_container_width=True)
 
-    # ============ PDF EXPORT ============
+    # ===============================
+    # PDF EXPORT
+    # ===============================
 
-    pdf = io.BytesIO()
+    pdf_buf = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buf, pagesize=landscape(A4),
+                            leftMargin=30,rightMargin=30,topMargin=30,bottomMargin=30)
 
-    doc = SimpleDocTemplate(pdf, pagesize=landscape(A4), leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
     styles = getSampleStyleSheet()
 
-    styles.add(ParagraphStyle("JDETitle",
+    styles.add(ParagraphStyle(
+        name="JDETitle",
         fontName="Helvetica-Bold",
         fontSize=20,
         textColor=colors.HexColor(PRIMARY_COLOR),
-        leading=24,
         spaceAfter=12
     ))
-    styles.add(ParagraphStyle("JDENormal",
+
+    styles.add(ParagraphStyle(
+        name="JDENormal",
         fontName="Helvetica",
         fontSize=10,
-        textColor=colors.black,
-        leading=14
+        leading=14,
+        textColor=colors.black
     ))
-    styles.add(Paragraph
-        ("JDEItalic",
+
+    styles.add(ParagraphStyle(
+        name="JDEItalic",
         fontName="Helvetica-Oblique",
         fontSize=9,
-        textColor=colors.HexColor("#444"),
+        leading=12,
+        textColor=colors.HexColor("#444")
     ))
 
     flow = []
@@ -262,46 +320,38 @@ if st.button("Bereken winkansen"):
         flow.append(Spacer(1, 8))
 
     flow.append(Paragraph("Advies: Winkans & Acties (BPKV)", styles["JDETitle"]))
-    flow.append(Spacer(1, 12))
+    flow.append(Spacer(1, 10))
 
-    # JDE summary
-    jde_scores = ", ".join([f"{c}: {int(verwachte_scores_eigen[c])}" for c in criteria])
+    jde_scores = ", ".join(f"{c}: {int(verwachte_scores_eigen[c])}" for c in criteria)
     flow.append(Paragraph(f"<b>JDE:</b> {margin_pct}% duurder, scores: {jde_scores}", styles["JDENormal"]))
     flow.append(Spacer(1, 10))
 
-    # Table (compact)
-    pdf_cols = ["Scenario", "Status", "Verschil", "Prijsactie", "Kwaliteitsactie"]
+    pdf_cols = ["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
     table_data = [pdf_cols] + [[r[c] for c in pdf_cols] for r in rows]
 
-    table = Table(table_data, colWidths=[120, 70, 60, 150, 150])
+    table = Table(table_data, colWidths=[140,70,60,150,150])
     table.setStyle(TableStyle([
         ('BACKGROUND',(0,0),(-1,0),colors.HexColor(ACCENT_GOLD)),
         ('TEXTCOLOR',(0,0),(-1,0),colors.white),
         ('GRID',(0,0),(-1,-1),0.25,colors.grey),
         ('FONTNAME',(0,0),(-1,0),'Helvetica-Bold'),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
         ('FONTSIZE',(0,0),(-1,-1),9),
-        ('ALIGN',(0,0),(-1,-1),'CENTER')
     ]))
 
     flow.append(table)
     flow.append(Spacer(1, 14))
 
-    # Routes
     flow.append(Paragraph("<b>Adviesroutes:</b>", styles["JDENormal"]))
     for r in rows:
         route = advice_route(r["Prijsactie"], r["Kwaliteitsactie"])
         flow.append(Paragraph(f"- {r['Scenario']}: {route}", styles["JDENormal"]))
 
-    def background(canvas, doc):
+    def bg(canvas, doc):
         canvas.setFillColor(colors.HexColor(PAGE_BEIGE))
         canvas.rect(0, 0, doc.pagesize[0], doc.pagesize[1], fill=1)
 
-    doc.build(flow, onFirstPage=background)
-    pdf.seek(0)
+    doc.build(flow, onFirstPage=bg)
+    pdf_buf.seek(0)
 
-    st.download_button(
-        "📄 Download PDF (Compact)",
-        data=pdf.getvalue(),
-        file_name="winkans_advies.pdf",
-        mime="application/pdf"
-    )
+    st.download_button("📄 Download PDF", data=pdf_buf.getvalue(), file_name="winkans_advies.pdf", mime="application/pdf")
