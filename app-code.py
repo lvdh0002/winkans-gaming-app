@@ -113,28 +113,56 @@ num_criteria = st.sidebar.number_input(
 st.session_state.criteria = st.session_state.criteria[:num_criteria] + \
     [f"Criteria {i+1}" for i in range(len(st.session_state.criteria), num_criteria)]
 
-# 4. Per kwaliteitscriterium: naam, weging %, max punten
+# 4. Per kwaliteitscriterium: naam bovenaan, weging & max punten naast elkaar
 st.sidebar.subheader("Kwaliteitscriteria details")
 criteria_data = []
-total_quality_weight = kwaliteit_pct
-even_weight = round(total_quality_weight / num_criteria, 2)
+total_quality_weight = int(st.session_state.kwaliteit_pct)
+even_weight = round(total_quality_weight / num_criteria)
+
 for i in range(num_criteria):
-    col1, col2, col3 = st.sidebar.columns([3,2,2])
-    name = col1.text_input(f"Naam criterium {i+1}", value=st.session_state.criteria[i], key=f"crit_name_{i}")
-    weight = col2.number_input(f"Weging (%) {i+1}", min_value=0.0, max_value=100.0, value=even_weight, step=1.0, key=f"crit_weight_{i}")
-    max_points = col3.number_input(f"Max punten {i+1}", min_value=1, max_value=100, value=int(weight), step=1, key=f"crit_max_{i}")
-    criteria_data.append({"name": name, "weight": weight, "max_points": max_points})
+    # Naam bovenaan
+    name = st.sidebar.text_input(
+        f"Naam criterium {i+1}",
+        value=st.session_state.criteria[i],
+        key=f"crit_name_{i}"
+    )
+
+    # Weging en max punten naast elkaar
+    col1, col2 = st.sidebar.columns(2)
+    weight = col1.number_input(
+        f"Weging (%)",
+        min_value=0,
+        max_value=100,
+        value=int(even_weight),
+        step=1,
+        key=f"crit_weight_{i}"
+    )
+    max_points = col2.number_input(
+        f"Max punten",
+        min_value=1,
+        max_value=100,
+        value=int(weight),
+        step=1,
+        key=f"crit_max_{i}"
+    )
+
+    criteria_data.append({
+        "name": name,
+        "weight": int(weight),
+        "max_points": int(max_points)
+    })
 
 st.session_state.criteria_data = criteria_data
 
 # 5. Max punten prijs (standaard gelijk aan prijsweging)
 max_price_points = st.sidebar.number_input(
     "Max punten prijs",
-    min_value=1, max_value=100,
-    value=int(prijs_pct),
+    min_value=1,
+    max_value=100,
+    value=int(st.session_state.prijs_pct),
     step=1
 )
-st.session_state.max_price_points = max_price_points
+st.session_state.max_price_points = int(max_price_points)
 
 # -------------------------
 # Eigen aanbod invoer in sidebar
