@@ -59,61 +59,32 @@ LOGO_PATH = os.path.join("assets","logo_jde.png")  # controleer pad
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
-# -------------------------
-# PART 3: SIDEBAR INPUTS
-# -------------------------
-st.sidebar.header("Instellingen")
+# 2. Beoordelingsschaal (dropdown + custom)
+st.sidebar.subheader("Beoordelingsschaal kwaliteit")
+scale_options = {
+    "0-20-40-60-80-100": [0,20,40,60,80,100],
+    "0-25-50-75-100": [0,25,50,75,100],
+    "0-10-20-30-40-50-60-70-80-90-100": list(range(0,101,10)),
+    "Custom": "Custom"
+}
+selected_scale = st.sidebar.selectbox("Kies schaal", options=list(scale_options.keys()), index=0)
 
-num_criteria = st.sidebar.number_input(
-    "Aantal kwaliteitscriteria",
-    min_value=1, max_value=5,
-    value=len(st.session_state.criteria),
-    step=1,
-    key="num_crit"
-)
-
-criteria = st.session_state.criteria[:num_criteria] + \
-           [f"Criteria {i+1}" for i in range(len(st.session_state.criteria), num_criteria)]
-st.session_state.criteria = criteria
-
-st.sidebar.subheader("Wegingen (%)")
-price_weight = st.sidebar.number_input(
-    "Weging prijs (%)",
-    min_value=0.0, max_value=100.0,
-    value=float(st.session_state.price_weight),
-    step=1.0,
-    key="weight_price"
-)
-quality_weight = 100 - price_weight
-
-st.sidebar.subheader("Beoordelingsschaal kwaliteit (bijv. 0,20,40,60,80,100)")
-scale_input = st.sidebar.text_input(
-    "Schaal",
-    value=",".join(str(s) for s in st.session_state.score_scale),
-    key="scale_in"
-)
-score_scale = [float(x.strip()) for x in scale_input.split(",")]
-st.session_state.score_scale = score_scale
-
-# Eigen aanbod
-st.sidebar.header("Eigen aanbod")
-self_margin = st.sidebar.number_input(
-    "% duurder dan goedkoopste (jij)",
-    min_value=0.0, max_value=200.0,
-    value=10.0,
-    step=0.1,
-    key="self_margin"
-)
-
-self_scores = []
-for c in range(num_criteria):
-    sc = st.sidebar.selectbox(
-        f"Jouw score op {criteria[c]}",
-        options=score_scale,
-        index=0,
-        key=f"self_score_{c}"
+if selected_scale != "Custom":
+    score_scale = scale_options[selected_scale]
+else:
+    custom_input = st.sidebar.text_input(
+        "Custom schaal (komma gescheiden)",
+        value=",".join(str(s) for s in st.session_state.score_scale)
     )
-    self_scores.append(sc)
+    # Zet custom input om naar floats, negeer lege waarden of niet-numerieke input
+    score_scale = []
+    for x in custom_input.split(","):
+        try:
+            score_scale.append(float(x.strip()))
+        except ValueError:
+            pass  # negeer niet-numerieke waarden
+
+st.session_state.score_scale = score_scale
 
 # -------------------------
 # PART 4: CONCURRENTENSCORES IN HOOFDSCHERM
