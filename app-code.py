@@ -59,16 +59,39 @@ LOGO_PATH = os.path.join("assets","logo_jde.png")  # controleer pad
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
+
+# -------------------------
+# PART 3: SIDEBAR - BEHEER VAN METHODIEK
+# -------------------------
+st.sidebar.header("Beoordelingsmethodiek Instellingen")
+
+# 1. Weging prijs en kwaliteit (samen altijd 100%)
+prijs_pct = st.sidebar.number_input(
+    "Weging prijs (%)",
+    min_value=0, max_value=100,
+    value=int(st.session_state.prijs_pct),
+    step=1,
+    key="prijs_input",
+    on_change=update_prijs
+)
+kwaliteit_pct = st.sidebar.number_input(
+    "Weging kwaliteit (%)",
+    min_value=0, max_value=100,
+    value=int(st.session_state.kwaliteit_pct),
+    step=1,
+    key="kwaliteit_input",
+    on_change=update_kwaliteit
+)
+
 # 2. Beoordelingsschaal (dropdown + custom)
 st.sidebar.subheader("Beoordelingsschaal kwaliteit")
 scale_options = {
     "0-20-40-60-80-100": [0,20,40,60,80,100],
     "0-25-50-75-100": [0,25,50,75,100],
     "0-10-20-30-40-50-60-70-80-90-100": list(range(0,101,10)),
-    "Custom": "Custom"
+    "Custom": None
 }
 selected_scale = st.sidebar.selectbox("Kies schaal", options=list(scale_options.keys()), index=0)
-
 if selected_scale != "Custom":
     score_scale = scale_options[selected_scale]
 else:
@@ -76,15 +99,42 @@ else:
         "Custom schaal (komma gescheiden)",
         value=",".join(str(s) for s in st.session_state.score_scale)
     )
-    # Zet custom input om naar floats, negeer lege waarden of niet-numerieke input
-    score_scale = []
-    for x in custom_input.split(","):
-        try:
-            score_scale.append(float(x.strip()))
-        except ValueError:
-            pass  # negeer niet-numerieke waarden
+    score_scale = [float(x.strip()) for x in custom_input.split(",") if x.strip().replace(".","",1).isdigit()]
 
 st.session_state.score_scale = score_scale
+
+# 3. Aantal kwaliteitscriteria
+num_criteria = st.sidebar.number_input(
+    "Aantal kwaliteitscriteria",
+    min_value=1, max_value=5,
+    value=len(st.session_state.criteria),
+    step=1
+)
+st.session_state.criteria = st.session_state.criteria[:num_criteria] + \
+    [f"Criteria {i+1}" for i in range(len(st.session_state.criteria), num_criteria)]
+
+# 4. Per kwaliteitscriterium: naam, weging %, max punten
+st.sidebar.subheader("Kwaliteitscriteria details")
+criteria_data = []
+total_quality_weight = kwaliteit_pct
+even_weight = round(total_quality_weight / num_criteria, 2)
+for i in range(num_criteria):
+    col1, col2, col3 = st.sidebar.columns([3,2,2])
+    name = col1.text_input(f"Naam criterium {i+1}", value=st.session_state.criteria[i], key=f"crit_name_{i}")
+    weight = col2.number_input(f"Weging (%) {i+1}", min_value=0.0, max_value=100.0, value=even_weight, step=1.0, key=f"crit_weight_{i}")
+    max_points = col3.number_input(f"Max punten {i+1}", min_value=1, max_value=100, value=int(weight), step=1, key=f"crit_max_{i}")
+    criteria_data.append({"name": name, "weight": weight, "max_points": max_points})
+
+st.session_state.criteria_data = criteria_data
+
+# 5. Max punten prijs (standaard gelijk aan prijsweging)
+max_price_points = st.sidebar.number_input(
+    "Max punten prijs",
+    min_value=1, max_value=100,
+    value=int(prijs_pct),
+    step=1
+)
+st.session_state.max_price_points = max_price_points
 
 # -------------------------
 # PART 4: CONCURRENTENSCORES IN HOOFDSCHERM
