@@ -1,3 +1,6 @@
+# -------------------------
+# PART 1: IMPORTS & SESSION STATE
+# -------------------------
 import streamlit as st
 import pandas as pd
 import math
@@ -15,9 +18,9 @@ from reportlab.pdfbase.ttfonts import TTFont
 # Session state defaults
 # -------------------------
 if "prijs_pct" not in st.session_state:
-    st.session_state.prijs_pct = 40.0
+    st.session_state.prijs_pct = 40
 if "kwaliteit_pct" not in st.session_state:
-    st.session_state.kwaliteit_pct = 60.0
+    st.session_state.kwaliteit_pct = 60
 if "criteria" not in st.session_state:
     st.session_state.criteria = ["Flexibiliteit", "Dienstverlening", "Duurzaamheid"]
 if "score_scale" not in st.session_state:
@@ -25,12 +28,12 @@ if "score_scale" not in st.session_state:
 if "num_competitors" not in st.session_state:
     st.session_state.num_competitors = 3
 if "price_weight" not in st.session_state:
-    st.session_state.price_weight = 40.0
+    st.session_state.price_weight = 40
 if "margin_pct" not in st.session_state:
     st.session_state.margin_pct = 10.0
 
 # -------------------------
-### PART 2: PAGE STYLE & HEADER
+# PART 2: PAGE STYLE AND HEADER
 # -------------------------
 st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 
@@ -53,40 +56,40 @@ LOGO_PATH = os.path.join("assets","logo_jde.png")
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
+
 # -------------------------
-### PART 3: SIDEBAR INPUTS
+# PART 3: SIDEBAR INPUTS
 # -------------------------
 st.sidebar.header("Instellingen")
 
-# Aantal criteria
+# Aantal kwaliteitscriteria
 num_criteria = st.sidebar.number_input(
     "Aantal kwaliteitscriteria",
     min_value=1, max_value=5,
     value=len(st.session_state.criteria),
-    step=1,
-    key="num_crit"
+    step=1
 )
 
+# Bijwerken criteria-lijst
 criteria = st.session_state.criteria[:num_criteria] + \
            [f"Criteria {i+1}" for i in range(len(st.session_state.criteria), num_criteria)]
 st.session_state.criteria = criteria
 
-# Weging prijs/kwaliteit
+# Wegingen
+st.sidebar.subheader("Wegingen (%)")
 price_weight = st.sidebar.number_input(
     "Weging prijs (%)",
-    min_value=0.0, max_value=100.0,
-    value=float(st.session_state.price_weight),
-    step=1.0,
-    key="weight_price"
+    min_value=0, max_value=100,
+    value=st.session_state.price_weight,
+    step=1
 )
-quality_weight = 100.0 - price_weight
+quality_weight = 100 - price_weight
 
 # Beoordelingsschaal
-st.sidebar.subheader("Beoordelingsschaal kwaliteit")
+st.sidebar.subheader("Beoordelingsschaal kwaliteit (bijv. 0,20,40,60,80,100)")
 scale_input = st.sidebar.text_input(
     "Schaal",
-    value=",".join(str(s) for s in st.session_state.score_scale),
-    key="scale_in"
+    value=",".join(str(s) for s in st.session_state.score_scale)
 )
 score_scale = [float(x.strip()) for x in scale_input.split(",")]
 st.session_state.score_scale = score_scale
@@ -95,21 +98,40 @@ st.session_state.score_scale = score_scale
 num_competitors = st.sidebar.number_input(
     "Aantal concurrenten",
     min_value=1, max_value=10,
-    value=int(st.session_state.num_competitors),
-    key="num_comp"
+    value=st.session_state.num_competitors,
+    step=1
 )
 st.session_state.num_competitors = num_competitors
 
+# Eigen aanbod
+st.sidebar.header("Eigen aanbod")
+self_margin = st.sidebar.number_input(
+    "% duurder dan goedkoopste (jij)",
+    min_value=0.0, max_value=200.0,
+    value=10.0,
+    step=0.1
+)
+
+self_scores = []
+for c in range(num_criteria):
+    sc = st.sidebar.selectbox(
+        f"Jouw score op {criteria[c]}",
+        options=score_scale,
+        index=0,
+        key=f"self_score_{c}"
+    )
+    self_scores.append(sc)
+
 # -------------------------
-### PART 4: SCENARIO INPUTS
+# PART 4: COMPETITOR SCENARIOS
 # -------------------------
-st.sidebar.header("Scenario-invoer")
+st.header("Concurrenten")
 
 scenarios = []
 for i in range(num_competitors):
-    st.sidebar.subheader(f"Concurrent {i+1}")
+    st.subheader(f"Concurrent {i+1}")
 
-    is_cheapest = st.sidebar.checkbox(
+    is_cheapest = st.checkbox(
         "Is goedkoopste aanbieder?",
         value=False,
         key=f"cheap_{i}"
@@ -118,7 +140,7 @@ for i in range(num_competitors):
     if is_cheapest:
         margin_pct = 0.0
     else:
-        margin_pct = st.sidebar.number_input(
+        margin_pct = st.number_input(
             "% duurder dan goedkoopste",
             min_value=0.0, max_value=200.0,
             value=10.0,
@@ -128,7 +150,7 @@ for i in range(num_competitors):
 
     comp_scores = []
     for c in range(num_criteria):
-        sc = st.sidebar.selectbox(
+        sc = st.selectbox(
             f"Score op {criteria[c]}",
             options=score_scale,
             index=0,
@@ -142,25 +164,6 @@ for i in range(num_competitors):
         "quality_scores": comp_scores
     })
 
-# Eigen aanbod
-st.sidebar.header("Eigen aanbod")
-self_margin = st.sidebar.number_input(
-    "% duurder dan goedkoopste (jij)",
-    min_value=0.0, max_value=200.0,
-    value=10.0,
-    step=0.1,
-    key="self_margin"
-)
-
-self_scores = []
-for c in range(num_criteria):
-    sc = st.sidebar.selectbox(
-        f"Jouw score op {criteria[c]}",
-        options=score_scale,
-        index=0,
-        key=f"self_score_{c}"
-    )
-    self_scores.append(sc)
 
 # -------------------------
 ### PART 5: HELPER FUNCTIONS
@@ -199,7 +202,41 @@ def absolute_price_points(margin, max_price_points):
     return float(max_price_points) * (1.0 - adjusted/100.0)
 
 # -------------------------
-### PART 6: CALCULATION & RESULTS
+# PART 5: HELPER FUNCTIONS
+# -------------------------
+
+def score_to_raw_points(score, max_points):
+    try:
+        return (float(score) / 100.0) * float(max_points)
+    except:
+        return 0.0
+
+def compute_quality_points(scores, criterion_maxpoints, criterion_weights, prijs_pct, criteria):
+    breakdown = {}
+    total = 0.0
+    sum_weights = sum(criterion_weights.values())
+    for c in criteria:
+        maxp = criterion_maxpoints[c]
+        raw = score_to_raw_points(scores[c], maxp)
+        norm = raw / maxp if maxp > 0 else 0.0
+        weight_frac = criterion_weights[c] / sum_weights
+        contrib = weight_frac * prijs_pct * norm
+        breakdown[c] = {
+            "raw_points": raw,
+            "normalized": norm,
+            "weight_frac": weight_frac,
+            "contribution": contrib
+        }
+        total += contrib
+    return total, breakdown
+
+def absolute_price_points(margin, max_price_points):
+    """Voeg 1% extra penalty toe → 5% duurder = 6% puntenverlies."""
+    margin_effective = float(margin) + 1.0
+    return float(max_price_points) * (1.0 - margin_effective / 100.0)
+
+# -------------------------
+# PART 6: CALCULATION & RESULTS
 # -------------------------
 st.header("Resultaten")
 
@@ -208,7 +245,7 @@ if st.button("Bereken winkansen"):
     criterion_weights = {c: 1 for c in criteria}
 
     jde_total, jde_breakdown = compute_quality_points(
-        {c:self_scores[i] for i,c in enumerate(criteria)},
+        {c: self_scores[i] for i, c in enumerate(criteria)},
         criterion_maxpoints,
         criterion_weights,
         prijs_pct=quality_weight,
@@ -216,31 +253,37 @@ if st.button("Bereken winkansen"):
     )
 
     max_price_points = int(round(price_weight))
-    jde_p = absolute_price_points(self_margin, max_price_points)
+    jde_p = int(round(absolute_price_points(self_margin, max_price_points)))
     jde_total += jde_p
 
     rows = []
     for idx, s in enumerate(scenarios, start=1):
-        comp_scores_dict = {c:s["quality_scores"][i] for i,c in enumerate(criteria)}
-        comp_total, _ = compute_quality_points(
+        comp_scores_dict = {c: s["quality_scores"][i] for i, c in enumerate(criteria)}
+        comp_total, comp_breakdown = compute_quality_points(
             comp_scores_dict,
             criterion_maxpoints,
             criterion_weights,
             prijs_pct=quality_weight,
             criteria=criteria
         )
+
         comp_p = absolute_price_points(s["margin_pct"], max_price_points)
         comp_total += comp_p
 
-        status = "WIN" if jde_total > comp_total else "LOSE" if jde_total < comp_total else "DRAW"
+        if jde_total > comp_total:
+            status = "WIN"
+        elif jde_total < comp_total:
+            status = "LOSE"
+        else:
+            status = "DRAW"
 
         rows.append({
             "Scenario": f"{idx}",
             "Status": status,
-            "JDE totaal": round(jde_total,2),
-            "JDE prijs pts": round(jde_p,2),
-            "Conc totaal": round(comp_total,2),
-            "Conc prijs pts": round(comp_p,2)
+            "JDE totaal": round(jde_total, 2),
+            "JDE prijs pts": int(round(jde_p)),
+            "Conc totaal": round(comp_total, 2),
+            "Conc prijs pts": int(round(comp_p))
         })
 
     df = pd.DataFrame(rows)
