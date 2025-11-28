@@ -137,13 +137,40 @@ max_price_points = st.sidebar.number_input(
 st.session_state.max_price_points = max_price_points
 
 # -------------------------
+# Eigen aanbod invoer in sidebar
+# -------------------------
+st.sidebar.header("Eigen aanbod")
+
+self_margin = st.sidebar.number_input(
+    "% duurder dan goedkoopste (jij)",
+    min_value=0.0,
+    max_value=200.0,
+    value=10.0,
+    step=0.1,
+    key="self_margin_input"
+)
+
+# Zorg dat self_scores altijd de juiste lengte heeft
+self_scores = []
+for i in range(num_criteria):
+    sc = st.sidebar.selectbox(
+        f"Jouw score op {st.session_state.criteria_data[i]['name']}",
+        options=score_scale,
+        index=0,
+        key=f"self_score_{i}"
+    )
+    self_scores.append(sc)
+
+
+# -------------------------
 # PART 4: CONCURRENTENSCORES IN HOOFDSCHERM
 # -------------------------
 st.header("Concurrentiescenario's")
 
 num_competitors = st.number_input(
     "Aantal concurrenten",
-    min_value=1, max_value=10,
+    min_value=1,
+    max_value=10,
     value=int(st.session_state.num_competitors),
     step=1
 )
@@ -152,34 +179,41 @@ st.session_state.num_competitors = num_competitors
 scenarios = []
 for i in range(num_competitors):
     st.subheader(f"Concurrent {i+1}")
+
+    # Checkbox "Is goedkoopste"
     is_cheapest = st.checkbox(f"Is goedkoopste aanbieder?", key=f"cheap_{i}")
     
+    # Prijsmarge-input (alleen als niet goedkoopste)
     if is_cheapest:
         margin_pct = 0.0
     else:
         margin_pct = st.number_input(
             "% duurder dan goedkoopste",
-            min_value=0.0, max_value=200.0,
+            min_value=0.0,
+            max_value=200.0,
             value=10.0,
             step=0.1,
             key=f"margin_{i}"
         )
 
+    # Kwaliteitsscores per criterium
     comp_scores = []
-    for c in range(num_criteria):
+    for j, crit in enumerate(st.session_state.criteria_data):
         sc = st.selectbox(
-            f"Score op {criteria[c]}",
+            f"Score op {crit['name']}",
             options=score_scale,
             index=0,
-            key=f"comp_{i}_{c}"
+            key=f"comp_{i}_{j}"
         )
         comp_scores.append(sc)
 
+    # Scenario opslaan
     scenarios.append({
         "is_cheapest": is_cheapest,
         "margin_pct": margin_pct,
         "quality_scores": comp_scores
     })
+
 
 # -------------------------
 # PART 5: HELPER FUNCTIONS
@@ -271,30 +305,36 @@ def generate_pdf(df, self_scores, scenarios, criteria, filename="winkans.pdf"):
 # -------------------------
 st.header("Resultaten")
 
-if st.button("Bereken winkansen"):
-    criterion_maxpoints = {c: 100 for c in criteria}
-    criterion_weights = {c: 1 for c in criteria}
+# Bereken quality_weight dynamisch
+price_weight = prijs_pct
+quality_weight = kwaliteit_pct
 
+if st.button("Bereken winkansen"):
+    # maxpunten en weging per criterium
+    criterion_maxpoints = {c['name']: c['max_points'] for c in st.session_state.criteria_data}
+    criterion_weights = {c['name']: c['weight'] for c in st.session_state.criteria_data}
+
+    # Eigen totaal
     jde_total, jde_breakdown = compute_quality_points(
-        {c:self_scores[i] for i,c in enumerate(criteria)},
+        {c['name']: self_scores[i] for i,c in enumerate(st.session_state.criteria_data)},
         criterion_maxpoints,
         criterion_weights,
         prijs_pct=quality_weight,
-        criteria=criteria
+        criteria=[c['name'] for c in st.session_state.criteria_data]
     )
-    max_price_points = float(price_weight)
     jde_p = absolute_price_points_1pct(self_margin, max_price_points)
     jde_total += jde_p
 
+    # Concurrenten
     rows = []
     for idx, s in enumerate(scenarios, start=1):
-        comp_scores_dict = {c:s["quality_scores"][i] for i,c in enumerate(criteria)}
+        comp_scores_dict = {st.session_state.criteria_data[i]['name']: s['quality_scores'][i] for i in range(num_criteria)}
         comp_total, comp_breakdown = compute_quality_points(
             comp_scores_dict,
             criterion_maxpoints,
             criterion_weights,
             prijs_pct=quality_weight,
-            criteria=criteria
+            criteria=[c['name'] for c in st.session_state.criteria_data]
         )
         comp_p = absolute_price_points_1pct(s["margin_pct"], max_price_points)
         comp_total += comp_p
@@ -316,7 +356,7 @@ if st.button("Bereken winkansen"):
     st.dataframe(df, use_container_width=True)
 
     # PDF download
-    pdf_buffer = generate_pdf(df, self_scores, scenarios, criteria)
+    pdf_buffer = generate_pdf(df, self_scores, scenarios, [c['name'] for c in st.session_state.criteria_data])
     st.download_button(
         label="Download PDF",
         data=pdf_buffer,
