@@ -20,31 +20,38 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
 
-/* Algemene fonts */
+/* Algemene fonts en kleuren */
 h1,h2,h3,h4 { font-family: 'Oswald', sans-serif !important; font-weight:700; color:#7A1F1F; }
 html,body,.stApp { background-color:#F3E9DB; font-family:'Segoe UI',sans-serif!important; color:#000; }
-.stButton>button { font-family:'Oswald',sans-serif!important; font-weight:700; background:#7A1F1F; color:#fff; border-radius:6px; }
+.stButton>button { font-family:'Oswald', sans-serif!important; font-weight:700; background:#7A1F1F; color:#fff; border-radius:6px; }
 
 /* ---------------------------------------------------- */
-/* TRUC: Maak van het main-screen tekstveld een Header  */
+/* CORRECTIE: Sidebar Kleuren vastzetten op #7A1F1F     */
 /* ---------------------------------------------------- */
+[data-testid="stSidebar"] > div:first-child { 
+    background:#7A1F1F!important; /* Hoofdmerk kleur */
+    color:#fff; 
+}
+[data-testid="stSidebar"] label { 
+    color:#fff!important; 
+}
 
-/* Dit target ALLEEN text_inputs in het hoofdscherm (niet sidebar) */
+
+/* TRUC: Maak van het main-screen tekstveld een Header */
 .stApp > header + div [data-testid="stTextInput"] input {
     font-family: 'Oswald', sans-serif !important;
     font-weight: 700 !important;
-    font-size: 26px !important;      /* Grootte van een H3 header */
-    color: #7A1F1F !important;       /* De primaire rode kleur */
+    font-size: 26px !important;
+    color: #7A1F1F !important;
     background-color: transparent !important;
-    border: none !important;         /* Geen rand rondom */
-    border-bottom: 2px solid #7A1F1F !important; /* Subtiel lijntje onderaan */
+    border: none !important;
+    border-bottom: 2px solid #7A1F1F !important;
     padding-left: 0px !important;
     padding-bottom: 5px !important;
     height: auto !important;
     box-shadow: none !important;
 }
 
-/* Zorg dat de focus-rand (blauw) ook rood of onzichtbaar wordt */
 .stApp > header + div [data-testid="stTextInput"] input:focus {
     box-shadow: none !important;
     outline: none !important;
@@ -67,12 +74,14 @@ html,body,.stApp { background-color:#F3E9DB; font-family:'Segoe UI',sans-serif!i
 PRIMARY_COLOR = "#7A1F1F"
 LOGO_PATH = os.path.join("assets", "logo_jde.png")
 
-# Fonts registreren
+# Fonts registreren voor PDF (aanname dat dit in de setup staat)
 try:
+    # Let op: Deze paden moeten kloppen met je lokale bestandslocatie.
     pdfmetrics.registerFont(TTFont("OswaldBold", os.path.join("assets", "Oswald-Bold.ttf")))
     pdfmetrics.registerFont(TTFont("Aptos", os.path.join("assets", "Aptos-Regular.ttf")))
     pdfmetrics.registerFont(TTFont("Aptos-Italic", os.path.join("assets", "Aptos-Italic.ttf")))
 except:
+    # Fallback indien bestanden niet gevonden
     pdfmetrics.registerFont(TTFont("OswaldBold", "Helvetica-Bold")) 
     pdfmetrics.registerFont(TTFont("Aptos", "Helvetica"))
     pdfmetrics.registerFont(TTFont("Aptos-Italic", "Helvetica-Oblique"))
