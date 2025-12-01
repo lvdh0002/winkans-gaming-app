@@ -19,14 +19,48 @@ st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
+
+/* Algemene fonts */
 h1,h2,h3,h4 { font-family: 'Oswald', sans-serif !important; font-weight:700; color:#7A1F1F; }
 html,body,.stApp { background-color:#F3E9DB; font-family:'Segoe UI',sans-serif!important; color:#000; }
 .stButton>button { font-family:'Oswald',sans-serif!important; font-weight:700; background:#7A1F1F; color:#fff; border-radius:6px; }
-.stButton>button:hover { background:#4B2E2B; }
-[data-testid="stSidebar"] > div:first-child { background:#A13D3B!important; color:#fff; }
-[data-testid="stSidebar"] label { color:#fff!important; }
-/* Input labels stylen zodat ze op headers lijken */
-.stTextInput label { font-family: 'Oswald', sans-serif !important; font-weight: 700; font-size: 1.1rem; color: #7A1F1F; }
+
+/* ---------------------------------------------------- */
+/* TRUC: Maak van het main-screen tekstveld een Header  */
+/* ---------------------------------------------------- */
+
+/* Dit target ALLEEN text_inputs in het hoofdscherm (niet sidebar) */
+.stApp > header + div [data-testid="stTextInput"] input {
+    font-family: 'Oswald', sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 26px !important;      /* Grootte van een H3 header */
+    color: #7A1F1F !important;       /* De primaire rode kleur */
+    background-color: transparent !important;
+    border: none !important;         /* Geen rand rondom */
+    border-bottom: 2px solid #7A1F1F !important; /* Subtiel lijntje onderaan */
+    padding-left: 0px !important;
+    padding-bottom: 5px !important;
+    height: auto !important;
+    box-shadow: none !important;
+}
+
+/* Zorg dat de focus-rand (blauw) ook rood of onzichtbaar wordt */
+.stApp > header + div [data-testid="stTextInput"] input:focus {
+    box-shadow: none !important;
+    outline: none !important;
+    border-bottom: 3px solid #7A1F1F !important;
+}
+
+/* Sidebar inputs normaal houden (resetten) */
+[data-testid="stSidebar"] [data-testid="stTextInput"] input {
+    font-family: 'Segoe UI', sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    color: black !important;
+    border: 1px solid #ccc !important;
+    background-color: white !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -107,18 +141,25 @@ num_competitors = st.number_input("Aantal concurrenten", 1, 12, st.session_state
 st.session_state.num_competitors = num_competitors
 
 scenarios = []
-
-# Loop om rijen van maximaal 4 te maken
 cols_per_row = 4
+
 for i in range(0, num_competitors, cols_per_row):
-    # Maak kolommen aan voor deze rij
     cols = st.columns(min(cols_per_row, num_competitors - i))
     
     for j, col in enumerate(cols):
         idx = i + j
         with col:
-            # GEWIJZIGD: Input veld fungeert als header
-            c_name = st.text_input(f"Naam Concurrent {idx+1}", value=f"Concurrent {idx+1}", key=f"c_name_{idx}")
+            # ----------------------------------------------------
+            # HIER IS HET AANGEPASTE VELD
+            # label_visibility="collapsed" verbergt het kleine label
+            # de CSS bovenaan maakt de tekst groot en dikgedrukt
+            # ----------------------------------------------------
+            c_name = st.text_input(
+                f"Naam Concurrent {idx+1}", # Label nodig voor interne werking
+                value=f"Concurrent {idx+1}", 
+                key=f"c_name_{idx}",
+                label_visibility="collapsed" 
+            )
             
             is_cheap = st.checkbox("Is goedkoopste?", key=f"c_cheap_{idx}")
             if is_cheap:
@@ -137,14 +178,12 @@ for i in range(0, num_competitors, cols_per_row):
                 "kval_scores": c_scores
             })
     
-    # Voeg wat ruimte toe tussen rijen
     st.markdown("<br>", unsafe_allow_html=True)
 
 # -------------------------
-# REKENLOGICA
+# REKENLOGICA & ADVIES
 # -------------------------
 def absolute_price_points(margin_pct, max_points):
-    # Formule: punten lineair afbouwen met marge
     pts = float(max_points) * (1.0 - (margin_pct/100.0))
     return max(0.0, pts)
 
@@ -158,55 +197,33 @@ def compute_quality_points(scores_dict):
     return total, breakdown
 
 def calculate_precise_advice(jde_total, jde_qual, jde_current_margin, comp_total, max_price_pts):
-    """
-    Berekent hoeveel de prijs moet zakken om te winnen.
-    Doel: 1% goedkoper zijn dan het 'gelijkspel' punt (veiligheidsmarge).
-    """
     diff = jde_total - comp_total
     
-    # Als we al winnen
     if diff > 0:
         return "WIN", "Behoud prijsstrategie", int(diff)
 
-    # Als we verliezen, hoeveel punten komen we tekort?
-    shortfall = abs(diff)
-    
-    # We willen niet gelijkspelen, maar winnen. 
-    # Laten we zeggen: we willen 0.1 punt meer hebben dan de concurrent.
+    # We willen winnen (bijv +0.1 pt), niet gelijkspelen
     target_points_needed = comp_total + 0.1
-    
-    # De punten die uit prijs moeten komen = Totaal Nodig - Punten uit Kwaliteit
     required_price_points = target_points_needed - jde_qual
     
-    # Check of dit haalbaar is (max punten prijs is het plafond)
     if required_price_points > max_price_pts:
         return "VERLIES", "Kwaliteitsgat te groot; niet te dichten met alleen prijs.", int(diff)
     
-    # Terugrekenen van Punten naar Marge
-    # Formule was: Pts = Max * (1 - Marge/100)
-    # Dus: Pts/Max = 1 - Marge/100  -> Marge/100 = 1 - Pts/Max -> Marge = 100 * (1 - Pts/Max)
+    # Marge berekening: Pts = Max * (1 - Marge/100)
+    # Dus Marge = 100 * (1 - Pts/Max)
     required_margin_pct = 100.0 * (1.0 - (required_price_points / max_price_pts))
     
-    # Veiligheidsstap: "1% goedkoper zijn dan nodig".
-    # Dit betekent de berekende marge nog iets verlagen.
-    # Als break-even marge 5% is, gaan we naar 4%.
-    # Als break-even marge 0.5% is, moeten we eigenlijk negatief (onder kostprijs/onder goedkoopste).
+    # Veiligheidsmarge: zorg dat we net iets scherper zijn (-1%)
+    safe_margin = required_margin_pct - 1.0 
     
-    safe_margin = required_margin_pct - 1.0 # 1 procentpunt extra korting
-    
-    # Bereken de prijsdaling t.o.v. huidige prijs
-    # Huidige prijs index = 100 + jde_current_margin
-    # Nieuwe prijs index = 100 + safe_margin
     current_index = 100.0 + jde_current_margin
     new_index = 100.0 + safe_margin
-    
     price_drop_pct = ((current_index - new_index) / current_index) * 100.0
     
     if safe_margin < 0:
-        return "VERLIES", f"Je moet {abs(safe_margin):.1f}% onder de laagste marktprijs duiken. Onrealistisch.", int(diff)
+        return "VERLIES", f"Onrealistisch: je moet {abs(safe_margin):.1f}% onder de laagste marktprijs.", int(diff)
         
-    return "VERLIES", f"Verlaag je prijs met {price_drop_pct:.1f}% (nieuwe marge: {safe_margin:.1f}%)", int(diff)
-
+    return "VERLIES", f"Verlaag prijs met {price_drop_pct:.1f}% (nieuwe marge: {safe_margin:.1f}%)", int(diff)
 
 # -------------------------
 # RESULTATEN & PDF
@@ -229,10 +246,6 @@ if st.button("Bereken winkansen"):
             jde_tot, jde_q, self_margin, c_tot, max_price_points
         )
         
-        # Kwaliteitsadvies (simpel)
-        kwal_advies = "Kwaliteit is leidend" if jde_q >= c_q else "Verbeter kwaliteit"
-        if status == "WIN": kwal_advies = "Kwaliteit borgen"
-
         row = {
             "Scenario": s['naam'],
             "Status": status,
@@ -243,7 +256,6 @@ if st.button("Bereken winkansen"):
             "JDE Kwaliteit": round(jde_q, 2),
             "Conc Kwaliteit": round(c_q, 2)
         }
-        # Details toevoegen
         for k, v in jde_brk.items(): row[f"JDE {k}"] = round(v, 2)
         for k, v in c_brk.items(): row[f"Conc {k}"] = round(v, 2)
             
@@ -251,18 +263,15 @@ if st.button("Bereken winkansen"):
     
     df = pd.DataFrame(rows)
     
-    # Tabel tonen
     st.dataframe(
         df[["Scenario", "Status", "Score Verschil", "Advies Prijs", "JDE Totaal", "Conc Totaal"]], 
         use_container_width=True,
         column_config={
-            "Advies Prijs": st.column_config.TextColumn("Direct Advies", width="medium"),
+            "Advies Prijs": st.column_config.TextColumn("Direct Advies", width="large"),
         }
     )
     
-    # -------------------------
-    # PDF GENERATIE
-    # -------------------------
+    # PDF Generatie
     pdf_buf = io.BytesIO()
     doc = SimpleDocTemplate(pdf_buf, pagesize=landscape(A4), leftMargin=24, rightMargin=24, topMargin=24, bottomMargin=24)
     styles = getSampleStyleSheet()
@@ -271,18 +280,15 @@ if st.button("Bereken winkansen"):
     styles.add(ParagraphStyle(name="JDEItalic", fontName="Aptos-Italic", fontSize=9, textColor=colors.HexColor("#666")))
 
     flow = []
-    # Header
     logo = Image(LOGO_PATH, width=100, height=50) if os.path.exists(LOGO_PATH) else Paragraph("<b>JDE</b>", styles["JDETitle"])
     tbl = Table([[logo, Paragraph("Advies: Winkans & Acties", styles["JDETitle"])]], colWidths=[120, 500])
     tbl.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
     flow.append(tbl)
     flow.append(Spacer(1, 20))
 
-    # Info
     flow.append(Paragraph(f"<b>Uitgangssituatie:</b> Prijs weging {prijs_pct}%, Kwaliteit {kwaliteit_pct}%. Eigen marge: {self_margin}%.", styles["JDENormal"]))
     flow.append(Spacer(1, 15))
 
-    # Tabel Resultaten
     headers = ["Scenario", "Status", "Verschil", "Prijs Advies", "JDE Tot", "Conc Tot"]
     data = [headers]
     for r in rows:
@@ -300,9 +306,7 @@ if st.button("Bereken winkansen"):
     ]))
     flow.append(t)
     flow.append(Spacer(1, 30))
-    
-    flow.append(Paragraph("Deze berekening is indicatief. Aan deze uitkomsten kunnen geen rechten worden ontleend.", styles["JDEItalic"]))
+    flow.append(Paragraph("Deze berekening is indicatief.", styles["JDEItalic"]))
     
     doc.build(flow)
     st.download_button("Download PDF Rapport", pdf_buf.getvalue(), "winkans_advies.pdf", "application/pdf")
-    
