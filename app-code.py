@@ -19,441 +19,429 @@ st.set_page_config(page_title="Winkans Berekening Tool", layout="wide")
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap');
-
-/* Algemene fonts en kleuren */
 h1,h2,h3,h4 { font-family: 'Oswald', sans-serif !important; font-weight:700; color:#7A1F1F; }
 html,body,.stApp { background-color:#F3E9DB; font-family:'Segoe UI',sans-serif!important; color:#000; }
-.stButton>button { font-family:'Oswald', sans-serif!important; font-weight:700; background:#7A1F1F; color:#fff; border-radius:6px; }
-
-/* Sidebar Kleuren vastzetten */
-[data-testid="stSidebar"] > div:first-child { 
-    background:#7A1F1F!important; 
-    color:#fff; 
-}
-[data-testid="stSidebar"] label { 
-    color:#fff!important; 
-}
-
-
-/* TRUC: Maak van het main-screen tekstveld een Header (Concurrent Naam) */
-.stApp > header + div [data-testid="stTextInput"] input {
-    font-family: 'Oswald', sans-serif !important;
-    font-weight: 700 !important;
-    font-size: 26px !important;
-    color: #7A1F1F !important;
-    background-color: transparent !important;
-    border: none !important;
-    border-bottom: 2px solid #7A1F1F !important;
-    padding-left: 0px !important;
-    padding-bottom: 5px !important;
-    height: auto !important;
-    box-shadow: none !important;
-}
-
-.stApp > header + div [data-testid="stTextInput"] input:focus {
-    box-shadow: none !important;
-    outline: none !important;
-    border-bottom: 3px solid #7A1F1F !important;
-}
-
-/* Sidebar inputs normaal houden (resetten) */
-[data-testid="stSidebar"] [data-testid="stTextInput"] input {
-    font-family: 'Segoe UI', sans-serif !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    color: black !important;
-    border: 1px solid #ccc !important;
-    background-color: white !important;
-}
-
+.stButton>button { font-family:'Oswald',sans-serif!important; font-weight:700; background:#7A1F1F; color:#fff; border-radius:6px; }
+.stButton>button:hover { background:#4B2E2B; }
+[data-testid="stSidebar"] > div:first-child { background:#A13D3B!important; color:#fff; }
+[data-testid="stSidebar"] label { color:#fff!important; }
 </style>
 """, unsafe_allow_html=True)
 
 PRIMARY_COLOR = "#7A1F1F"
-LOGO_PATH = os.path.join("assets", "logo_jde.png") 
+LOGO_PATH = os.path.join("assets", "logo_jde.png")
 
-# Fonts registreren voor PDF
-oswald_path = os.path.join("assets", "Oswald-Bold.ttf")
-aptos_path = os.path.join("assets", "Aptos-Regular.ttf")
-aptos_italic_path = os.path.join("assets", "Aptos-Italic.ttf")
-
+# Fonts registreren voor PDF (met fallback als bestanden ontbreken)
 try:
-    pdfmetrics.registerFont(TTFont("OswaldBold", oswald_path))
-    pdfmetrics.registerFont(TTFont("Aptos", aptos_path))
-    pdfmetrics.registerFont(TTFont("Aptos-Italic", aptos_italic_path))
-except Exception as e:
-    # Fallback indien bestanden niet gevonden
-    # st.warning(f"Kon PDF fonts niet laden: {e}. Gebruik fallback fonts.") # Streamlit warning in PDF sectie
+    pdfmetrics.registerFont(TTFont("OswaldBold", os.path.join("assets", "Oswald-Bold.ttf")))
+    pdfmetrics.registerFont(TTFont("Aptos", os.path.join("assets", "Aptos-Regular.ttf")))
+    pdfmetrics.registerFont(TTFont("Aptos-Italic", os.path.join("assets", "Aptos-Italic.ttf")))
+    FONTS_LOADED = True
+except:
+    # Fallback fonts als de .ttf bestanden er niet zijn
     pdfmetrics.registerFont(TTFont("OswaldBold", "Helvetica-Bold")) 
     pdfmetrics.registerFont(TTFont("Aptos", "Helvetica"))
     pdfmetrics.registerFont(TTFont("Aptos-Italic", "Helvetica-Oblique"))
+    FONTS_LOADED = False
+    st.warning("Let op: Font bestanden (Oswald/Aptos) niet gevonden in 'assets'. Standaard fonts worden gebruikt.")
 
 # -------------------------
 # SESSION STATE & CALLBACKS
 # -------------------------
-if "prijs_pct" not in st.session_state: st.session_state.prijs_pct = 40
-if "kwaliteit_pct" not in st.session_state: st.session_state.kwaliteit_pct = 60
-if "criteria" not in st.session_state: st.session_state.criteria = ["Duurzaamheid", "Service"]
-if "score_scale" not in st.session_state: st.session_state.score_scale = [0, 20, 40, 60, 80, 100]
-if "num_competitors" not in st.session_state: st.session_state.num_competitors = 3
-if "criteria_data" not in st.session_state: st.session_state.criteria_data = []
+if "prijs_pct" not in st.session_state:
+    st.session_state.prijs_pct = 40
+if "kwaliteit_pct" not in st.session_state:
+    st.session_state.kwaliteit_pct = 60
+if "criteria" not in st.session_state:
+    st.session_state.criteria = ["Flexibiliteit", "Dienstverlening", "Duurzaamheid"]
+if "score_scale" not in st.session_state:
+    st.session_state.score_scale = [0, 20, 40, 60, 80, 100]
+if "num_competitors" not in st.session_state:
+    st.session_state.num_competitors = 3
+if "criteria_data" not in st.session_state:
+    st.session_state.criteria_data = []
 
-def update_prijs(): st.session_state.kwaliteit_pct = 100 - st.session_state.prijs_pct
-def update_kwaliteit(): st.session_state.prijs_pct = 100 - st.session_state.kwaliteit_pct
+# Callback functies voor automatische 100% som
+def update_prijs():
+    # Update kwaliteit op basis van nieuwe prijs
+    st.session_state.kwaliteit_pct = 100 - st.session_state.prijs_pct
+
+def update_kwaliteit():
+    # Update prijs op basis van nieuwe kwaliteit
+    st.session_state.prijs_pct = 100 - st.session_state.kwaliteit_pct
+
 def sync_weight_max(i):
-    if f"crit_weight_{i}" in st.session_state:
-        st.session_state[f"crit_max_{i}"] = st.session_state[f"crit_weight_{i}"]
-def sync_num_competitors():
-    st.session_state.num_competitors = st.session_state.num_competitors_input
+    # Callback: als weging verandert, zet max punten gelijk aan weging (tenzij handmatig overruled later)
+    weight_key = f"crit_weight_{i}"
+    max_key = f"crit_max_{i}"
+    if weight_key in st.session_state:
+        st.session_state[max_key] = st.session_state[weight_key]
 
 st.markdown("<h1>Tool om winkansen te berekenen o.b.v. BPKV</h1>", unsafe_allow_html=True)
 
 # -------------------------
-# SIDEBAR
+# SIDEBAR - INSTELLINGEN
 # -------------------------
-st.sidebar.header("Beoordelingsmethodiek")
+st.sidebar.header("Beoordelingsmethodiek Instellingen")
 
+# 1. Weging prijs en kwaliteit (gekoppeld)
 col_p, col_q = st.sidebar.columns(2)
-prijs_pct = col_p.number_input("Weging prijs (%)", 0, 100, int(st.session_state.prijs_pct), 1, key="prijs_pct", on_change=update_prijs)
-kwaliteit_pct = col_q.number_input("Weging kwaliteit (%)", 0, 100, int(st.session_state.kwaliteit_pct), 1, key="kwaliteit_pct", on_change=update_kwaliteit)
+prijs_pct = col_p.number_input(
+    "Weging prijs (%)",
+    min_value=0, max_value=100,
+    value=int(st.session_state.prijs_pct),
+    step=1,
+    key="prijs_pct",
+    on_change=update_prijs
+)
+kwaliteit_pct = col_q.number_input(
+    "Weging kwaliteit (%)",
+    min_value=0, max_value=100,
+    value=int(st.session_state.kwaliteit_pct),
+    step=1,
+    key="kwaliteit_pct",
+    on_change=update_kwaliteit
+)
 
-st.sidebar.subheader("Beoordelingsschaal")
-scale_options = {"0-20-40-60-80-100": [0,20,40,60,80,100], "0-25-50-75-100": [0,25,50,75,100], "Custom": None}
-sel_scale = st.sidebar.selectbox("Kies schaal", list(scale_options.keys()), 0)
-score_scale = scale_options[sel_scale] if sel_scale != "Custom" else [float(x) for x in st.sidebar.text_input("Custom (komma)", "0,10,100").split(",") if x.strip()]
+# 2. Beoordelingsschaal
+st.sidebar.subheader("Beoordelingsschaal kwaliteit")
+scale_options = {
+    "0-20-40-60-80-100": [0, 20, 40, 60, 80, 100],
+    "0-25-50-75-100": [0, 25, 50, 75, 100],
+    "Custom": None
+}
+selected_scale = st.sidebar.selectbox("Kies schaal", options=list(scale_options.keys()), index=0)
+if selected_scale != "Custom":
+    score_scale = scale_options[selected_scale]
+else:
+    custom_input = st.sidebar.text_input("Custom schaal (komma gescheiden)", "0,10,20,30,40,50,60,70,80,90,100")
+    try:
+        score_scale = [float(x.strip()) for x in custom_input.split(",") if x.strip()]
+    except:
+        score_scale = [0, 100]
 st.session_state.score_scale = score_scale
-# Variabele toevoegen voor PDF toelichting
-scale_label = sel_scale if sel_scale != "Custom" else f"Custom ({', '.join(map(str, score_scale))})"
+scale_label = selected_scale if selected_scale != "Custom" else custom_input
 
-st.sidebar.subheader("Criteria Details")
-num_crit = st.sidebar.number_input("Aantal criteria", 1, 10, len(st.session_state.criteria))
-if len(st.session_state.criteria) < num_crit: st.session_state.criteria += [f"Crit {i+1}" for i in range(len(st.session_state.criteria), num_crit)]
-else: st.session_state.criteria = st.session_state.criteria[:num_crit]
+# 3. Kwaliteitscriteria
+num_criteria = st.sidebar.number_input("Aantal kwaliteitscriteria", 1, 10, len(st.session_state.criteria))
 
+# Pas lijst met criteria namen aan indien aantal verandert
+if len(st.session_state.criteria) < num_criteria:
+    st.session_state.criteria += [f"Criteria {i+1}" for i in range(len(st.session_state.criteria), num_criteria)]
+else:
+    st.session_state.criteria = st.session_state.criteria[:num_criteria]
+
+st.sidebar.subheader("Kwaliteitscriteria details")
 criteria_data = []
-# Deze dictionaries zijn nodig voor de PDF data logica
-criterion_weights = {}
-criterion_maxpoints = {}
+default_weight = int(st.session_state.kwaliteit_pct / num_criteria) if num_criteria > 0 else 0
 
-def_w = int(kwaliteit_pct/num_crit) if num_crit>0 else 0
-for i in range(num_crit):
+for i in range(num_criteria):
     st.sidebar.markdown(f"**Criterium {i+1}**")
-    nm = st.sidebar.text_input("Naam", st.session_state.criteria[i], key=f"crit_name_{i}")
-    c1, c2 = st.sidebar.columns(2)
-    w = c1.number_input("Weging", 0, 100, def_w, key=f"crit_weight_{i}", on_change=sync_weight_max, args=(i,))
-    if f"crit_max_{i}" not in st.session_state: st.session_state[f"crit_max_{i}"] = w
-    mp = c2.number_input("Max pts", 1, 200, key=f"crit_max_{i}")
-    criteria_data.append({"name": nm, "weight": w, "max_points": mp})
+    name = st.sidebar.text_input(f"Naam", value=st.session_state.criteria[i], key=f"crit_name_{i}")
     
-    # Vul de benodigde dictionaries
-    criterion_weights[nm] = w
-    criterion_maxpoints[nm] = mp
+    c1, c2 = st.sidebar.columns(2)
+    # Weging input met callback naar sync functie
+    weight = c1.number_input(
+        f"Weging (%)", 
+        min_value=0, max_value=100, 
+        value=default_weight, 
+        step=1, 
+        key=f"crit_weight_{i}",
+        on_change=sync_weight_max,
+        args=(i,)
+    )
+    
+    # Max punten input (value wordt geupdate via session_state key door sync_weight_max)
+    # We gebruiken hier key=f"crit_max_{i}" die door de callback wordt aangestuurd
+    if f"crit_max_{i}" not in st.session_state:
+         st.session_state[f"crit_max_{i}"] = weight
+
+    max_points = c2.number_input(
+        f"Max punten", 
+        min_value=1, max_value=200, 
+        key=f"crit_max_{i}"
+    )
+
+    criteria_data.append({"name": name, "weight": weight, "max_points": max_points})
 
 st.session_state.criteria_data = criteria_data
-st.session_state.criteria = [cd['name'] for cd in criteria_data] # Update criteria namen in state
 
+# Max punten prijs (standaard gelijk aan weging prijs)
 st.sidebar.markdown("---")
-max_price_points = st.sidebar.number_input("Max punten prijs", 1, 100, int(prijs_pct))
+max_price_points = st.sidebar.number_input("Max punten prijs", 1, 100, int(st.session_state.prijs_pct))
+
+# -------------------------
+# INPUT: EIGEN AANBOD & CONCURRENTEN
+# -------------------------
 st.sidebar.header("Jouw Aanbod (JDE)")
-self_margin = st.sidebar.number_input("Jouw prijs (% boven laagste)", 0.0, 200.0, 10.0, 0.1)
-self_scores = {cd['name']: st.sidebar.selectbox(f"Jouw score: {cd['name']}", score_scale, index=len(score_scale)-1) for cd in criteria_data}
-# Variabele toewijzen (deze werd later als 'verwachte_scores_eigen' aangeroepen)
-verwachte_scores_eigen = self_scores
-margin_pct = self_margin
+self_margin = st.sidebar.number_input("Jouw prijs (% duurder dan laagste)", 0.0, 200.0, 10.0, 0.1)
+self_scores = {}
+for cd in criteria_data:
+    self_scores[cd['name']] = st.sidebar.selectbox(f"Jouw score: {cd['name']}", score_scale, index=len(score_scale)-1)
 
-
-# -------------------------
-# HOOFDSCHERM: CONCURRENTEN (GRID LAYOUT)
-# -------------------------
+# Hoofdscherm Competitie
 st.header("Concurrentiescenario's")
-num_competitors = st.number_input(
-    "Aantal concurrenten", 
-    1, 
-    12, 
-    st.session_state.num_competitors,
-    key="num_competitors_input", 
-    on_change=sync_num_competitors 
-)
+num_competitors = st.number_input("Aantal concurrenten", 1, 10, st.session_state.num_competitors)
 st.session_state.num_competitors = num_competitors
 
 scenarios = []
-cols_per_row = 4
-
-for i in range(0, num_competitors, cols_per_row):
-    cols = st.columns(min(cols_per_row, num_competitors - i))
-    
-    for j, col in enumerate(cols):
-        idx = i + j
-        with col:
-            c_name = st.text_input(
-                f"Naam Concurrent {idx+1}", 
-                value=f"Concurrent {idx+1}", 
-                key=f"c_name_{idx}",
-                label_visibility="collapsed" 
-            )
-            
-            is_cheap = st.checkbox("Is goedkoopste?", key=f"c_cheap_{idx}")
-            if is_cheap:
-                c_margin = 0.0
-                st.caption("Marge: 0% (basis)")
-            else:
-                c_margin = st.number_input(f"% Duurder", 0.0, 200.0, 5.0, 0.1, key=f"c_marg_{idx}")
-            
-            c_scores = {}
-            for cd in criteria_data:
-                c_scores[cd['name']] = st.selectbox(f"{cd['name']}", score_scale, index=0, key=f"c_sc_{idx}_{cd['name']}")
-            
-            scenarios.append({
-                "naam": c_name,
-                "marge": c_margin,
-                "kval_scores": c_scores
-            })
-    
-    st.markdown("<br>", unsafe_allow_html=True)
+cols = st.columns(num_competitors)
+for i in range(num_competitors):
+    with cols[i]:
+        st.subheader(f"Concurrent {i+1}")
+        c_name = st.text_input(f"Naam conc. {i+1}", f"Concurrent {i+1}")
+        is_cheap = st.checkbox("Is goedkoopste?", key=f"c_cheap_{i}")
+        if is_cheap:
+            c_margin = 0.0
+            st.info("Marge: 0% (basis)")
+        else:
+            c_margin = st.number_input(f"% Duurder", 0.0, 200.0, 5.0, 0.1, key=f"c_marg_{i}")
+        
+        c_scores = {}
+        for cd in criteria_data:
+            c_scores[cd['name']] = st.selectbox(f"Score {cd['name']}", score_scale, index=0, key=f"c_score_{i}_{cd['name']}")
+        
+        scenarios.append({
+            "naam": c_name,
+            "marge": c_margin,
+            "kval_scores": c_scores
+        })
 
 # -------------------------
-# REKENLOGICA & ADVIES
+# REKENLOGICA FUNCTIES
 # -------------------------
 def absolute_price_points(margin_pct, max_points):
-    """Berekent de punten op basis van de marge en maximale punten."""
+    # Formule: Max punten * (1 - (marge/100 + drempel)). Hier simpel gehouden.
+    # Aanname: bij 0% marge krijg je niet max punten, maar max - opslag?
+    # Standaard formule in aanbestedingen varieert. 
+    # Hier gebruiken we de logica uit je snippet: Max * (1 - (marge/100 + 0.01))
+    # Dit betekent dat zelfs de goedkoopste (0%) 99% van de punten krijgt, of de formule is relatief.
+    # We gebruiken de formule uit je eerdere snippet:
     pts = float(max_points) * (1.0 - (margin_pct/100.0))
     return max(0.0, pts)
 
-def compute_quality_points(scores_dict):
-    """Berekent de totale en breakdown kwaliteitspunten."""
+def compute_quality_points_and_breakdown(scores_dict):
     breakdown = {}
-    total = 0.0
+    total_q = 0.0
+    
+    # Haal totalen op voor normalisatie indien nodig, hier gebruiken we absolute schalen uit input
     for crit in st.session_state.criteria_data:
-        raw = (float(scores_dict.get(crit['name'], 0)) / 100.0) * crit['max_points']
+        name = crit['name']
+        weight = crit['weight']
+        max_p = crit['max_points']
         
-        # Breakdown structuur aanpassen om te matchen met de logica in de PDF sectie
-        # De PDF sectie gebruikt 'raw_points' en 'contribution' (wat hier de rauwe punten zijn)
-        breakdown[crit['name']] = {
-            "raw_points": round(raw, 2),
-            "contribution": round(raw, 2)
+        score_val = float(scores_dict.get(name, 0))
+        
+        # Berekening: (Behaalde score / 100) * Max Punten Criterium * (Weging Criterium / Totaal Weging Kwaliteit)?
+        # OF: De input is al "Max Punten" voor dat criterium in totaal?
+        # Aanname: Max Punten in sidebar is de punten die je krijgt bij een 100 score.
+        
+        raw_points = (score_val / 100.0) * max_p
+        
+        # De weging in sidebar telt op tot bijv 60. 
+        # Als max punten per criterium ook optellen tot 60, is raw_points direct de contributie.
+        # Als max punten "10" is maar weging "20", is er een mismatch. 
+        # We gebruiken hier de "Max punten" als de waarheid voor de score-impact.
+        
+        contribution = raw_points 
+        
+        breakdown[name] = {
+            "raw_points": round(raw_points, 2),
+            "contribution": round(contribution, 2)
         }
-        total += raw
-    return total, breakdown
-
-def calculate_precise_advice(jde_total, jde_qual, jde_current_margin, comp_total, max_price_pts):
-    """Berekent hoeveel de prijs moet zakken om met 1% marge te winnen.
-       Retourneert (Status, PrijsActie String, KwaliteitsActie String, Verschil)
-    """
-    diff = jde_total - comp_total
-    
-    # --- Status en PrijsActie ---
-    if diff > 0:
-        return "WIN", "Behoud prijsstrategie", "-", int(diff)
-
-    # We willen winnen (bijv +0.1 pt)
-    target_points_needed = comp_total + 0.1
-    required_price_points = target_points_needed - jde_qual
-    
-    # --- Check op Kwaliteitsgat ---
-    if required_price_points > max_price_pts:
-        prijs_actie = "Kwaliteitsgat te groot; niet te dichten met alleen prijs."
-        kval_actie = "Ontoereikend"
-        return "VERLIES", prijs_actie, kval_actie, int(diff)
-    
-    # Marge berekening: Marge = 100 * (1 - Pts/Max)
-    required_margin_pct = 100.0 * (1.0 - (required_price_points / max_price_pts))
-    safe_margin = required_margin_pct - 1.0 # Veiligheidsmarge
-    
-    current_index = 100.0 + jde_current_margin
-    new_index = 100.0 + safe_margin
-    price_drop_pct = ((current_index - new_index) / current_index) * 100.0
-    
-    
-    if safe_margin < 0:
-        prijs_actie = f"Onrealistisch: je moet {abs(safe_margin):.1f}% onder de laagste marktprijs."
-        kval_actie = "Ontoereikend"
-        return "VERLIES", prijs_actie, kval_actie, int(diff)
+        total_q += contribution
         
-    prijs_actie = f"Verlaag prijs met {price_drop_pct:.1f}% (nieuwe marge: {safe_margin:.1f}%)"
-    kval_actie = "-"
-    return "VERLIES", prijs_actie, kval_actie, int(diff)
+    return total_q, breakdown
 
+def determine_status_and_actions(j_tot, j_q, j_p, c_tot, c_q, c_p, j_marg, c_marg):
+    diff = j_tot - c_tot
+    if diff > 0:
+        return "WIN", "Behoud prijsstrategie", "Kwaliteit borgen", int(diff)
+    elif diff < 0:
+        status = "VERLIES"
+        # Actie bepalen
+        p_actie = "Verlaag prijs" if j_p < c_p else "Prijs is competitief"
+        k_actie = "Verbeter kwaliteit" if j_q < c_q else "Kwaliteit is leidend"
+        
+        if j_marg > c_marg and (c_p - j_p) > (c_q - j_q):
+            p_actie = f"Marge verlagen (nu {j_marg}%)"
+        
+        return status, p_actie, k_actie, int(diff)
+    else:
+        return "GELIJK", "Kijk naar details", "Kijk naar details", 0
 
 # -------------------------
-# RESULTATEN & PDF (GEFIXTE LOGICA)
+# GENERATE PDF & RESULTS
 # -------------------------
 st.header("Resultaten")
 
 if st.button("Bereken winkansen"):
-    # HET PROBLEEM IS DAT DE FUNCTIE COMPUT_QUALITY_POINTS NU EEN ANDER RETURN TYPE HEEFT DAN DE PDF VERWACHT.
-    # We gebruiken de nieuwe 'compute_quality_points' structuur.
-
-    # JDE Berekeningen
-    jde_q_total, jde_breakdown = compute_quality_points(self_scores) # 'self_scores' = 'verwachte_scores_eigen'
-    max_price_points = float(prijs_pct) # Hergebruik sidebar input
+    # Berekeningen JDE
+    jde_q_total, jde_breakdown = compute_quality_points_and_breakdown(self_scores)
     jde_p = absolute_price_points(self_margin, max_price_points)
     jde_total = jde_q_total + jde_p
-
-    rows=[]
-    for idx,s in enumerate(scenarios,start=1):
-        # Concurrent Berekeningen
-        comp_q_total, comp_breakdown = compute_quality_points(s["kval_scores"])
+    
+    rows = []
+    
+    for idx, s in enumerate(scenarios, start=1):
+        comp_q_total, comp_breakdown = compute_quality_points_and_breakdown(s["kval_scores"])
         comp_p = absolute_price_points(s["marge"], max_price_points)
         comp_total = comp_q_total + comp_p
-
-        # Advies
-        # Gebruik de nieuwe 'calculate_precise_advice' functie die 4 waarden retourneert
-        status, prijsactie, kwalactie, verschil = calculate_precise_advice(
-            jde_total, jde_q_total, self_margin, comp_total, max_price_points
+        
+        status, prijsactie, kwalactie, verschil = determine_status_and_actions(
+            jde_total, jde_q_total, jde_p, 
+            comp_total, comp_q_total, comp_p, 
+            self_margin, s["marge"]
         )
         
-        row={"Scenario":f"{idx}. {s['naam']}", # Scenario naam
-             "Status":status,
-             "Verschil":verschil,
-             "JDE totaal":round(jde_total,2),
-             "JDE prijs pts":round(jde_p,2),
-             "JDE kwaliteit pts (totaal)":round(jde_q_total,2),
-             "Conc totaal":round(comp_total,2),
-             "Conc prijs pts":round(comp_p,2),
-             "Conc kwaliteit pts (totaal)":round(comp_q_total,2),
-             "Prijsactie":prijsactie,
-             "Kwaliteitsactie":kwalactie}
-
-        # Breakdown data in de row stoppen (komt overeen met de structuur van compute_quality_points)
-        for c in st.session_state.criteria:
-            # We gebruiken nu de dictionary structuur die compute_quality_points maakt
-            row[f"JDE {c} raw_pts"] = jde_breakdown[c]["raw_points"]
-            row[f"JDE {c} contrib"] = jde_breakdown[c]["contribution"]
-            row[f"Conc {c} raw_pts"] = comp_breakdown[c]["raw_points"]
-            row[f"Conc {c} contrib"] = comp_breakdown[c]["contribution"]
-
+        row = {
+            "Scenario": f"{idx}. {s['naam']}",
+            "Status": status,
+            "Verschil": verschil,
+            "JDE totaal": round(jde_total, 2),
+            "JDE prijs pts": round(jde_p, 2),
+            "JDE kwal pts": round(jde_q_total, 2),
+            "Conc totaal": round(comp_total, 2),
+            "Conc prijs pts": round(comp_p, 2),
+            "Conc kwal pts": round(comp_q_total, 2),
+            "Prijsactie": prijsactie,
+            "Kwaliteitsactie": kwalactie
+        }
+        
+        # Voeg details toe voor CSV/Excel export
+        for c in st.session_state.criteria_data:
+            name = c['name']
+            row[f"JDE {name}"] = jde_breakdown[name]["raw_points"]
+            row[f"Conc {name}"] = comp_breakdown[name]["raw_points"]
+            
         rows.append(row)
-
-    df=pd.DataFrame(rows)
-    st.subheader("Volledige resultaten (per criterium breakdown)")
-    st.dataframe(df,use_container_width=True)
-
-    csv_bytes=df.to_csv(index=False).encode("utf-8")
-    st.download_button("Download volledige resultaten (CSV)", data=csv_bytes, file_name="winkans_volledig.csv", mime="text/csv")
-
+        
+    df = pd.DataFrame(rows)
+    
+    # Toon tabel op scherm (compact)
+    display_cols = ["Scenario", "Status", "Verschil", "JDE totaal", "Conc totaal", "Prijsactie", "Kwaliteitsactie"]
+    st.dataframe(df[display_cols], use_container_width=True)
+    
+    # Download CSV
+    csv_bytes = df.to_csv(index=False).encode("utf-8")
+    st.download_button("Download volledige data (CSV)", data=csv_bytes, file_name="winkans_export.csv", mime="text/csv")
+    
     # -------------------------
-    # Compact PDF
+    # PDF GENERATIE (REPORTLAB)
     # -------------------------
-    pdf_buf=io.BytesIO()
-    doc=SimpleDocTemplate(pdf_buf,pagesize=landscape(A4),
-                          leftMargin=24,rightMargin=24,topMargin=24,bottomMargin=24)
-    styles=getSampleStyleSheet()
-    styles.add(ParagraphStyle(name="JDETitle", fontName="OswaldBold", fontSize=20, leading=24, textColor=colors.HexColor("#333")))
+    pdf_buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        pdf_buf, 
+        pagesize=landscape(A4),
+        leftMargin=24, rightMargin=24, topMargin=24, bottomMargin=24
+    )
+    
+    styles = getSampleStyleSheet()
+    # Styles definiëren
+    styles.add(ParagraphStyle(name="JDETitle", fontName="OswaldBold", fontSize=20, leading=24, textColor=colors.HexColor("#7A1F1F")))
     styles.add(ParagraphStyle(name="JDESub", fontName="OswaldBold", fontSize=12, leading=14, textColor=colors.HexColor("#333")))
     styles.add(ParagraphStyle(name="JDENormal", fontName="Aptos", fontSize=10, leading=13, textColor=colors.HexColor("#333")))
-    styles.add(ParagraphStyle(name="JDEItalic", fontName="Aptos-Italic", fontSize=9, leading=11, textColor=colors.HexColor("#444")))
+    # HIER DE GEVRAAGDE AANPASSING: Aptos-Italic
+    styles.add(ParagraphStyle(name="JDEItalic", fontName="Aptos-Italic", fontSize=9, leading=11, textColor=colors.HexColor("#666")))
 
-    flow=[]
+    flow = []
 
-    # Header table met logo
-    logo_width = 120 
-    logo = Paragraph("", styles["JDENormal"]) # Fallback
+    # 1. Header met Logo
     if os.path.exists(LOGO_PATH):
         try:
-            img_reader=ImageReader(LOGO_PATH)
-            iw,ih=img_reader.getSize()
-            logo_height=logo_width*(ih/iw)
-            logo=Image(LOGO_PATH,width=logo_width,height=logo_height)
+            img_reader = ImageReader(LOGO_PATH)
+            iw, ih = img_reader.getSize()
+            logo_width = 100
+            logo_height = logo_width * (ih / iw)
+            logo = Image(LOGO_PATH, width=logo_width, height=logo_height)
         except:
-            pass 
+            logo = Paragraph("<b>JDE</b>", styles["JDETitle"])
+    else:
+        logo = Paragraph("<b>JDE</b>", styles["JDETitle"])
 
-    header_table=Table([[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]], colWidths=[logo_width+8,500])
+    header_data = [[logo, Paragraph("Advies: Winkans & Acties — BPKV", styles["JDETitle"])]]
+    header_table = Table(header_data, colWidths=[120, 500])
     header_table.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#FFFAF6")),
-        ('VALIGN',(0,0),(-1,0),'MIDDLE'),
-        ('TEXTCOLOR',(0,0),(-1,0),colors.HexColor("#333")),
-        ('LEFTPADDING',(0,0),(1,0),10),
-        ('RIGHTPADDING',(0,0),(1,0),10),
-        ('TOPPADDING',(0,0),(1,0),8),
-        ('BOTTOMPADDING',(0,0),(1,0),8)
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
     ]))
     flow.append(header_table)
-    flow.append(Spacer(1,12))
+    flow.append(Spacer(1, 20))
 
-    # JDE uitgangssituatie
-    flow.append(Paragraph("JDE uitgangssituatie", styles["JDESub"]))
-    # Gebruik self_scores voor de getoonde scores
-    jde_scores_text=", ".join([f"{c}: {int(self_scores.get(c,0))}" for c in st.session_state.criteria])
-    flow.append(Paragraph(f"Prijspositie: {self_margin:.1f}% duurder dan goedkoopste. Score-schaal: {scale_label}. Kwaliteitsscore(s): {jde_scores_text}.", styles["JDENormal"]))
-    flow.append(Spacer(1,8))
-
-    # Per-criterium table (JDE uitgangssituatie)
-    crit_table_data=[["Criterium","Weging (%)","Max punten","JDE score","JDE raw pts","JDE contrib (van kwaliteit)"]]
-    for c in st.session_state.criteria:
-        wt=criterion_weights.get(c,0.0)
-        mp=criterion_maxpoints.get(c,0.0)
-        jde_score=self_scores.get(c,0.0)
-        # Haal uit de berekende breakdown (jde_breakdown)
-        jde_raw=jde_breakdown.get(c, {}).get("raw_points", 0.0)
-        jde_contrib=jde_breakdown.get(c, {}).get("contribution", 0.0)
-        
-        crit_table_data.append([c,f"{wt:.1f}",f"{mp:.1f}",f"{int(jde_score)}",f"{jde_raw:.2f}",f"{jde_contrib:.2f}"])
+    # 2. Uitgangssituatie
+    flow.append(Paragraph("JDE Uitgangssituatie", styles["JDESub"]))
     
-    crit_tbl=Table(crit_table_data, colWidths=[140,70,70,70,80,100])
-    crit_tbl.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#7A1F1F")), # Header bruin
-        ('TEXTCOLOR',(0,0),(-1,0),colors.white), # Header tekst wit
-        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
-        ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
-        ('FONTNAME',(0,1),(-1,-1),'Aptos'),
-        ('FONTSIZE',(0,0),(-1,-1),9),
-        ('ALIGN',(1,1),(-1,-1),'CENTER')
+    jde_score_txt = ", ".join([f"{k}: {v}" for k, v in self_scores.items()])
+    summary_text = f"""
+    <b>Weging:</b> Prijs {st.session_state.prijs_pct}%, Kwaliteit {st.session_state.kwaliteit_pct}%.<br/>
+    <b>JDE Prijsmarge:</b> {self_margin}% boven laagste.<br/>
+    <b>JDE Scores:</b> {jde_score_txt}.
+    """
+    flow.append(Paragraph(summary_text, styles["JDENormal"]))
+    flow.append(Spacer(1, 15))
+
+    # 3. Kwaliteit Details Tabel
+    flow.append(Paragraph("Kwaliteitscriteria Breakdown", styles["JDESub"]))
+    crit_headers = ["Criterium", "Weging", "Max Pts", "JDE Score", "JDE Pts"]
+    crit_rows = [crit_headers]
+    for c in st.session_state.criteria_data:
+        crit_rows.append([
+            c['name'], 
+            str(c['weight']), 
+            str(c['max_points']), 
+            str(self_scores.get(c['name'], 0)), 
+            str(jde_breakdown[c['name']]['raw_points'])
+        ])
+    
+    c_table = Table(crit_rows, colWidths=[200, 80, 80, 80, 80], hAlign='LEFT')
+    c_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#F3E9DB")),
+        ('FONTNAME', (0,0), (-1,0), "OswaldBold"),
+        ('FONTNAME', (0,1), (-1,-1), "Aptos"),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor("#7A1F1F")),
     ]))
-    flow.append(crit_tbl)
-    flow.append(Spacer(1,20))
-    
-    # Scenario overzicht table
-    flow.append(Paragraph("Scenario overzicht", styles["JDESub"]))
-    flow.append(Spacer(1,8))
+    flow.append(c_table)
+    flow.append(Spacer(1, 15))
 
-    pdf_cols=["Scenario","Status","Verschil","Prijsactie","Kwaliteitsactie"]
-    table_data=[pdf_cols]+[[r[col] for col in pdf_cols] for r in rows]
+    # 4. Resultaten Scenarios
+    flow.append(Paragraph("Scenario Resultaten", styles["JDESub"]))
     
-    t=Table(table_data,colWidths=[170,70,60,150,150])
-    t.setStyle(TableStyle([
-        ('BACKGROUND',(0,0),(-1,0),colors.HexColor("#7A1F1F")), # Header bruin
-        ('TEXTCOLOR',(0,0),(-1,0),colors.white), # Header tekst wit
-        ('GRID',(0,0),(-1,-1),0.25,colors.HexColor("#FFFAF6")),
-        ('FONTNAME',(0,0),(-1,0),'OswaldBold'),
-        ('FONTNAME',(0,1),(-1,-1),'Aptos'),
-        ('FONTSIZE',(0,0),(-1,-1),9),
-        ('ALIGN',(1,1),(2,-1),'CENTER'),
-        # Alternerende rijkleuren voor leesbaarheid
-        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('BACKGROUND', (0, 2), (-1, -1), colors.HexColor("#F3F3F3")),
+    res_headers = ["Scenario", "Status", "JDE Tot", "Conc Tot", "Prijsactie", "Kwaliteitsactie"]
+    res_data = [res_headers]
+    for r in rows:
+        res_data.append([
+            r["Scenario"], 
+            r["Status"], 
+            str(r["JDE totaal"]), 
+            str(r["Conc totaal"]), 
+            r["Prijsactie"], 
+            r["Kwaliteitsactie"]
+        ])
+        
+    r_table = Table(res_data, colWidths=[150, 60, 60, 60, 180, 180], hAlign='LEFT')
+    r_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#7A1F1F")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('FONTNAME', (0,0), (-1,0), "OswaldBold"),
+        ('FONTNAME', (0,1), (-1,-1), "Aptos"),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor("#FAFAFA")]),
     ]))
-    flow.append(t)
-    flow.append(Spacer(1,10))
+    flow.append(r_table)
+    flow.append(Spacer(1, 30))
 
-    # Adviesroutes
-    flow.append(Paragraph("Adviesroutes", styles["JDESub"]))
-    
-    for r in rows:
-        # Hier gebruiken we de Prijsactie en Kwaliteitsactie uit de row
-        advies_str = f"<b>{r['Scenario']}</b>: {r['Prijsactie']}. {r['Kwaliteitsactie']}"
-        flow.append(Paragraph(advies_str, styles["JDENormal"]))
-        
-    flow.append(Spacer(1,20))
+    # 5. Disclaimer / Footer (Met Aptos-Italic)
+    disclaimer_text = "Deze berekening is een indicatie op basis van ingevoerde aannames. Aan deze uitkomsten kunnen geen rechten worden ontleend."
+    flow.append(Paragraph(disclaimer_text, styles["JDEItalic"]))
 
-    # Toelichting
-    flow.append(Paragraph("Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.", styles["JDEItalic"]))
-
-    # Afronding
+    # Build PDF
     doc.build(flow)
-    st.download_button("Download compacte PDF", data=pdf_buf.getvalue(), file_name="winkans_compact.pdf", mime="application/pdf")
-
-    # Adviesroutes
-    flow.append(Paragraph("Adviesroutes", styles["JDESub"]))
+    pdf_buf.seek(0)
     
-    for r in rows:
-        advies_str = f"<b>{r['Scenario']}</b>: {r['Prijsactie']}. {r['Kwaliteitsactie']}"
-        flow.append(Paragraph(advies_str, styles["JDENormal"]))
-        
-    flow.append(Spacer(1,20))
-
-    # Toelichting
-    flow.append(Paragraph("Toelichting: BPKV (Beste Prijs-Kwaliteit Verhouding) weegt prijs en kwaliteit. Kwaliteitspunten worden verdeeld volgens de opgegeven weging; de puntentoekenning per criterium geeft aan hoe scores op de schaal naar punten worden geconverteerd. Gebruik deze one-pager als extra slide in presentaties.", styles["JDEItalic"]))
-
-    # Afronding
-    doc.build(flow)
-    st.download_button("Download compacte PDF", data=pdf_buf.getvalue(), file_name="winkans_compact.pdf", mime="application/pdf")
+    st.download_button(
+        label="Download PDF Rapport",
+        data=pdf_buf,
+        file_name="Winkans_Rapport_JDE.pdf",
+        mime="application/pdf"
+    )
